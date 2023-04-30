@@ -1,0 +1,7 @@
+ --- Signatures ---
+
+0xfb00 == (s -> m)init
+0xfb01 == file transfer
+0xfb02 == (s -> m) console output
+oxfb03 == (m <-> s) reverse shell
+0xffff == (s -> m) heartbeat request
