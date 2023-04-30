@@ -1,0 +1,1 @@
+clang -o win_client.exe win_client.c -lws2_32 -lMswsock -lAdvApi32 -O3
