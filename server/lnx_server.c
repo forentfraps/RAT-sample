@@ -4,6 +4,9 @@
 #include<arpa/inet.h>
 #include<unistd.h>
 #include <stdlib.h>
+
+#define DEFAULT_PORT 80
+
 short SocketCreate(void)
 {
     short hSocket;
@@ -24,6 +27,7 @@ int BindCreatedSocket(int hSocket)
     iRetval = bind(hSocket,(struct sockaddr *)&remote,sizeof(remote));
     return iRetval;
 }
+
 int ParseInto(unsigned char* buf, int len, char* name){
     FILE* fd = fopen(name,"w");
     if(!fd) {
@@ -37,67 +41,49 @@ int ParseInto(unsigned char* buf, int len, char* name){
     return 0;
 }
 
+
 int main(int argc, char *argv[])
 {
-    int socket_desc, sock, clientLen, read_size;
-    struct sockaddr_in server, client;
-    char client_message[200]= {0};
-    char message[100] = {0};
-    char name[9] = "best.txt\0";
-    const char *pMessage = "hello aticleworld.com";
-    //Create socket
-    socket_desc = SocketCreate();
-    if (socket_desc == -1)
-    {
-        printf("Could not create socket");
-        return 1;
-    }
-    printf("Socket created\n");
-    //Bind
-    if( BindCreatedSocket(socket_desc) < 0)
-    {
-        //print the error message
-        perror("bind failed.");
-        return 1;
-    }
-    printf("bind done\n");
-    //Listen
-    listen(socket_desc, 3);
+    char ips[16] = ":-)"; // :-) IP of the "infected machine"
     //Accept and incoming connection
+
+    struct sockaddr_in servaddr;
+    int ConnectSocket, iResult;
     while(1)
+    /* Open a socket for heartbeat connections in another thread*/
     {
-        printf("Waiting for incoming connections...\n");
-        clientLen = sizeof(struct sockaddr_in);
-        //accept connection from an incoming client
-        sock = accept(socket_desc,(struct sockaddr *)&client,(socklen_t*)&clientLen);
-        if (sock < 0)
-        {
-            perror("accept failed");
+        int tmp = 0;
+        // Temporary choice of signature to send
+        printf("waiting for input:\n0, 1, 2, 3, 4\n");
+        scanf("%d", &tmp);
+        printf("Connecting...\n");
+        bzero(&servaddr, sizeof(servaddr));
+        servaddr.sin_family = AF_INET;
+        servaddr.sin_addr.s_addr = inet_addr(ip);
+        servaddr.sin_port = 22;
+        printf("Pass 1\n");
+        ConnectSocket = socket(AF_INET, SOCK_STREAM, 0);
+        if (ConnectSocket < 0){
+            perror("failed to get socket desc");
             return 1;
         }
-        int nmb;
-        int res = recv(sock, &nmb, 4, 0);
-        if(res < 0){
-            printf("We got something bad!\n");
-            printf("Error code: %d\n", res);
-            goto closesoc;
+        printf("Pass 2\n");
+        iResult = connect(ConnectSocket, (struct sockaddr* ) &servaddr, sizeof(servaddr));
+        if(iResult < 0){
+            perror("failed to connect");
+            return -1;
+        }
+        printf("Pass 3\n");
+        char txt[2] = {0xfb, tmp};
+        iResult = send(ConnectSocket, txt, 2, 0);
+        if (iResult < 0){
+            perror("fail send");
+            return 1;
+        }
 
-        }
-        u_long hsize = ntohl(nmb);
-        unsigned char* buf = malloc(hsize*sizeof(unsigned char));
-        res = recv(sock, buf, hsize, 0);
-        if( res < 0){
-            printf("Bad file\n");
-            free(buf);
-            goto closesoc;
-        }
-        ParseInto((unsigned char*)buf, hsize, &name);
-        printf("Success!\n");
-        closesoc:
-        close(sock);
-        sleep(1);
+        close(ConnectSocket);
+        break;
+
     }
     return 0;
 }
-// recv(sock, client_message, 200, 0)
-// send(sock, message, strlen(message), 0)
