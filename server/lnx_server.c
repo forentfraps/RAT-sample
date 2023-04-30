@@ -5,7 +5,7 @@
 #include<unistd.h>
 #include <stdlib.h>
 
-#define DEFAULT_PORT 80
+#define DEFAULT_PORT 27015
 
 short SocketCreate(void)
 {

@@ -13,7 +13,7 @@
 #pragma comment (lib, "AdvApi32.lib")
 
 
-#define DEFAULT_PORT "22"
+#define DEFAULT_PORT "27015"
 
 const char _SIG_INIT[] = {0xfb, 0x00};
 const char _SIG_FILE[] = {0xfb, 0x01};
