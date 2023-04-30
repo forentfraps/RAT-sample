@@ -1,3 +1,5 @@
+** Small initial goal botnet has to achieve
+
 Which user the malware got executed from (whoami)
 
 Print current working directory (pwd)
