@@ -188,7 +188,7 @@ void DBGLG(char buf[], ...){
     for(int i = 0; buf[i] != '\0'; ++i){
         num += buf[i] == ':';
     }
-    va_start(args, num);
+    va_start(args, buf);
     if (!num) printf("%s",buf);
     else printf("%s%d\n",buf, va_arg(args, int));
 
@@ -236,6 +236,8 @@ int __cdecl main(int argc, char **argv)
         WSACleanup();
         return 1;
     }
+    freeaddrinfo(ad_info);
+
     iResult = listen(ListenSocket, SOMAXCONN);
     if (iResult == SOCKET_ERROR) {
         DBGLG("listen failed with error: \n", WSAGetLastError());
