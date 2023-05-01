@@ -181,9 +181,18 @@ int TransferFile(char* path, SOCKET ConnectSocket)
     return 0;
 }
 
-void DBGLG(char buf[]){
+void DBGLG(char buf[], ...){
     #ifdef DEBUG
-    printf(buf);
+    va_list args;
+    int num = 0;
+    for(int i = 0; buf[i] != '\0'; ++i){
+        num += buf[i] == ':';
+    }
+    va_start(args, num);
+    if (!num) printf("%s",buf);
+    else printf("%s%d\n",buf, va_arg(args, int));
+
+    va_end(args);
     #endif
 }
 
@@ -214,14 +223,14 @@ int __cdecl main(int argc, char **argv)
     }
     ListenSocket = socket(ad_info->ai_family, ad_info->ai_socktype, ad_info->ai_protocol);
     if (ListenSocket == INVALID_SOCKET) {
-        DBGLG("socket failed with error: %d\n", WSAGetLastError());
+        DBGLG("socket failed with error: \n", WSAGetLastError());
         freeaddrinfo(ad_info);
         WSACleanup();
         return 1;
     }
     iResult = bind( ListenSocket, ad_info->ai_addr, (int)ad_info->ai_addrlen);
     if (iResult == SOCKET_ERROR) {
-        DBGLG("bind failed with error: %d\n", WSAGetLastError());
+        DBGLG("bind failed with error: \n", WSAGetLastError());
         freeaddrinfo(ad_info);
         closesocket(ListenSocket);
         WSACleanup();
@@ -229,7 +238,7 @@ int __cdecl main(int argc, char **argv)
     }
     iResult = listen(ListenSocket, SOMAXCONN);
     if (iResult == SOCKET_ERROR) {
-        DBGLG("listen failed with error: %d\n", WSAGetLastError());
+        DBGLG("listen failed with error: \n", WSAGetLastError());
         closesocket(ListenSocket);
         WSACleanup();
         return 1;
@@ -244,7 +253,7 @@ int __cdecl main(int argc, char **argv)
         sock = accept(ListenSocket, NULL, NULL);
         DBGLG("Connected\n");
         if (sock == INVALID_SOCKET) {
-            DBGLG("accept failed with error: %d\n", WSAGetLastError());
+            DBGLG("accept failed with error: \n", WSAGetLastError());
             closesocket(ListenSocket);
             WSACleanup();
             return 1;
