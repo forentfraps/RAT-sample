@@ -3,4 +3,6 @@
 *.lib
 *.exp
 *.lnk
-lnx_server
+server/hxdata
+server/lnx_server
+.vscode/tasks.json
