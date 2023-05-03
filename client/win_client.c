@@ -128,7 +128,7 @@ int Connect(SOCKET* ConnectSocket, struct addrinfo* ad_info){
     return 0;
 }
 
-int SetupServer(struct addrinfo **ad_info){
+int SetupSocketTCP(struct addrinfo **ad_info){
     /* Master -> Slave relationship */
     int iResult;
     struct addrinfo hints;
@@ -241,24 +241,22 @@ int WriteInPipe(HANDLE hStdinWr, OVERLAPPED* writeOverlapped,  SOCKET sock){
     return 0;
 }
 
-int __cdecl main(int argc, char **argv)
-{
-    int iResult, sig;
+int SetupServerTCP(SOCKET* sock, SOCKET* ListenSocket){
+    int iResult;
     struct addrinfo *ad_info = NULL;
-    SOCKET ListenSocket = INVALID_SOCKET;
-    SOCKET sock = INVALID_SOCKET;
+
     if (!WinsockInitialized()){
         iResult = InitSetup();
         if (iResult < 0){
             return iResult;
         }
     }
-    iResult = SetupServer(&ad_info);
+    iResult = SetupSocketTCP(&ad_info);
     if (iResult < 0){
-        perror("server setup fail");
+        perror("socket setup fail");
         return 1;
     }
-    ListenSocket = socket(ad_info->ai_family, ad_info->ai_socktype, ad_info->ai_protocol);
+    *ListenSocket = socket(ad_info->ai_family, ad_info->ai_socktype, ad_info->ai_protocol);
     if (ListenSocket == INVALID_SOCKET) {
         DBGLG("socket failed with error: \n", WSAGetLastError());
         freeaddrinfo(ad_info);
@@ -282,6 +280,14 @@ int __cdecl main(int argc, char **argv)
         WSACleanup();
         return 1;
     }
+}
+
+int __cdecl main(int argc, char **argv)
+{
+    int iResult, sig;
+    SOCKET ListenSocket = INVALID_SOCKET;
+    SOCKET sock = INVALID_SOCKET;
+    SetupServerTCP(&sock, &ListenSocket);
 
     /* TODO: Start a thread for heartbeating [IpSetup, Connect, HeartBeat, Close]*/
     while (1){
@@ -396,7 +402,6 @@ int __cdecl main(int argc, char **argv)
                 DBGLG("Got retarded data\n");
         }
         closesocket(sock);
-
     }
 
     WSACleanup();
