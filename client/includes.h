@@ -29,6 +29,7 @@ int Connect(SOCKET* ConnectSocket, struct addrinfo* ad_info);
 int SetupSocketTCP(struct addrinfo **ad_info);
 int SetupServerTCP(SOCKET* ListenSocket);
 
+
 /* --- UDP --- */
 
 int SetupServerUDP(SOCKET* _socku);
