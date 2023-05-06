@@ -12,7 +12,6 @@ int ScanOutPipe(HANDLE hStdoutRd, OVERLAPPED* readOverlapped, SOCKET sockt){
         perror("send in scanoutpipe died");
         return 1;
     }
-
     // WaitForSingleObjectEx(readOverlapped->hEvent, 500, TRUE);
 
     return 0;
@@ -23,7 +22,8 @@ int WriteInPipe(HANDLE hStdinWr, OVERLAPPED* writeOverlapped,  SOCKET sockt){
     int len = 0;
     char input[1024] = {0};
     len = recv(sockt, (char*)&input, 1024, 0);
-    if (len < 0){
+    // len <= 0 because when socket dies, recv return 0, rather than -1
+    if (len <= 0){
         perror("recv in WriteInPipe died");
         return 1;
     }

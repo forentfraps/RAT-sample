@@ -7,6 +7,8 @@
 #include <ws2tcpip.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <signal.h>
+
 
 /* --- UTILS --- */
 
@@ -28,6 +30,7 @@ int IpSetupINIT(struct addrinfo** _ad_info, char* ip);
 int Connect(SOCKET* ConnectSocket, struct addrinfo* ad_info);
 int SetupSocketTCP(struct addrinfo **ad_info);
 int SetupServerTCP(SOCKET* ListenSocket);
+
 
 /* --- UDP --- */
 
