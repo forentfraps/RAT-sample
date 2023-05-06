@@ -8,3 +8,4 @@ server/lnx_server
 .vscode/tasks.json
 .vscode/launch.json
 client/a.out
+.vscode/settings.json
