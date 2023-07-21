@@ -1,0 +1,4 @@
+#define DEFAULT_PORT_TCP "27015"
+#define DEFAULT_PORT_UDP  27016
+#define DEBUG
+#define WIN32_LEAN_AND_MEAN
