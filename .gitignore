@@ -9,3 +9,4 @@ server/lnx_server
 .vscode/launch.json
 client/a.out
 .vscode/settings.json
+.pre-commit-config.yaml

