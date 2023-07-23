@@ -1,2 +1,3 @@
 all:
-	gcc -o lnx_server lnx_server.c
+	gcc -o lnx_server server.c netlib.c -pthread -Ofast
+	

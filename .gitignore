@@ -10,3 +10,4 @@ server/lnx_server
 client/a.out
 .vscode/settings.json
 .pre-commit-config.yaml
+lnx_server

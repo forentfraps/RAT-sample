@@ -5,35 +5,40 @@
 #include <stdlib.h>
 #include <string.h>
 
+
+
+struct hr_arg{
+    struct sockaddr_in caddr;
+    long unsigned int len;
+    int* mutex;
+};
+
 void *handle_request(void *arg)
 {
-    int client_fd = *((int *) arg);
-    char request[BUFFER_SIZE];
-    char response[] = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<html><body><h1>Hello, world!</h1></body></html>";
-    
-    
-    ssize_t bytes_received = recv(client_fd, request, BUFFER_SIZE, 0);
-    if (bytes_received < 0) {
-        perror("handle_request: receive.");
-        close(client_fd);
-        return NULL;
+    int sockfd;
+    create_udp_socket(&sockfd);
+    char buf[] = "Got your message, thanks\n";
+    printf("we got to a new process\n");
+    struct hr_arg* args = ((struct hr_arg *) arg);
+    struct sockaddr_in caddr = args->caddr;
+    printf("sending\n");
+    if ( sendto(sockfd, buf, sizeof(buf), 0, (struct sockaddr*)&caddr, sizeof(caddr)) <0 ){
+        perror("failed to send");
     }
-
-    ssize_t bytes_sent = send(client_fd, response, strlen(response), 0);
-    if (bytes_sent < 0) {
-        perror("handle_request: send.");
-    }
-    
-    
-    close(client_fd);
+    *(args->mutex) = 0;
     return NULL;
 }
 
-int main(int argc, char *argv)
+
+
+int main(int argc, char **argv)
 {
-    int sockfd, clientfd;
+	printf("Starting\n");
+    int sockfd, mutex = 1, resplen = 0;
     struct sockaddr_in addr;
-    int port, s_addr, backlog;
+    
+    int port, backlog;
+    char buf[BUFFER_SIZE];
     pthread_t tid;
 
 #ifndef CUSTOM_PORT
@@ -41,36 +46,52 @@ int main(int argc, char *argv)
 #endif
 
 #ifndef CUSTOM_SADDR
-    s_addr = INADDR_ANY;
+    char s_addr[] = "0.0.0.0";
 #endif
 
 #ifndef CUSTOM_BACKLOG
     backlog = DEFAULT_BACKLOG;
 #endif
-
+ 	printf("creating udp\n");
     create_udp_socket(&sockfd);
+    printf("updating sockaddr\n");
     update_sockaddr_in(&addr, AF_INET, port, s_addr);
+	printf("binding socket\n");
+    printf("sockfd is %d\n", sockfd);
+    printf("sockaddr %p\n", &addr);
+    // bind_socket(sockfd, &addr);
+    if (bind(sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+        perror("Error binding socket");
+        exit(1);
+    }
 
-    bind_socket(sockfd, (struct sockaddr*)&addr);
-    listen_on_socket(sockfd, backlog);
-    
+    struct hr_arg args = {addr, 0, &mutex};
     while(1)
     {
-        if ((clientfd = accept(sockfd, (struct sockaddr *) &addr, (socklen_t*)sizeof(addr))) < 0) 
+        struct sockaddr_in caddr;
+        printf("Awaiting UDP with recvfrom\n");
+        if (recvfrom(sockfd, buf, BUFFER_SIZE, 0, (struct sockaddr*)&caddr, &resplen) < 0) 
         {
             perror("Accept failed.");
-            continue;
+            continue; 
         }
-
-        if(pthread_create(&tid, NULL, handle_request, &clientfd) != 0)
+        printf("%s\n", buf);
+        memcpy(&(args.caddr), &caddr, resplen);
+        *(args.mutex) = 1;
+        args.len = resplen;
+        if(pthread_create(&tid, NULL, handle_request, &caddr) != 0)
         {
             perror("Thread creation failed.");
-            close(clientfd);
             continue;
         }
 
         pthread_detach(tid);
-    }
+        while (*(args.mutex)){
+            sleep(1);
+            printf("waiting for mutex to unfreeze\n");
 
+        }
+    }
+	printf("Exiting?\n");
     return EXIT_SUCCESS;
 }

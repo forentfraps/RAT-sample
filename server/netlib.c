@@ -9,8 +9,8 @@
 
 void create_socket(int* sockfd, int domain, int type, int protocol)
 {
-    if((*sockfd = socket(domain, type, protocol)) < 0)
-        handle_error("create_socket(int*, int, int, int): socket creation failed.");
+    if((*sockfd = socket(domain, type, protocol)) < 0){
+        handle_error("create_socket(int*, int, int, int): socket creation failed.");}
 }
 
 void create_udp_socket(int* sockfd)
@@ -23,25 +23,26 @@ void create_tcp_socket(int* sockfd)
     create_socket(sockfd, AF_INET, SOCK_STREAM, 0);
 }
 
-void bind_socket(int sockfd, struct sockaddr* addr)
+void bind_socket(int sockfd, struct sockaddr_in* addr)
 {
-    if(sockfd < 0 || bind(sockfd, (const struct sockaddr*)addr, (socklen_t)sizeof(addr)) < 0)
-        handle_error("bind_socket(int, struct sockaddr*): bind failed.");
+    if (bind(sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+        handle_error("bind_socket(int, struct sockaddr*): bind failed.");}
 }
 
 void listen_on_socket(int sockfd, int backlog)
 {
-    if(sockfd < 0 || listen(sockfd, backlog) < 0)
-        handle_error("listen_on_socket(int, int): listen failed.");
+    if(sockfd < 0 || listen(sockfd, backlog) < 0){
+        handle_error("listen_on_socket(int, int): listen failed.");}
 }
 
-void update_sockaddr_in(struct sockaddr_in *addr, int family, int port, int s_addr)
+void update_sockaddr_in(struct sockaddr_in *addr, int family, int port, const char* s_addr)
 {
-    if(addr == NULL)
-        handle_error("update_sockaddr_in(struct sockaddr_in*, int, int, int): NULL pointer.");
+    if(addr == NULL){
+        handle_error("update_sockaddr_in(struct sockaddr_in*, int, int, int): NULL pointer.");}
     memset(addr, 0, sizeof(addr));
-
     addr->sin_family = family;
-    addr->sin_addr.s_addr = s_addr;
+    if (inet_pton(family, s_addr, &addr->sin_addr) <= 0) {
+        handle_error("update_sockaddr_in(struct sockaddr_in*, int, int, int): Failed at creating sockaddr.");}
+    
     addr->sin_port = htons(port);
 }
