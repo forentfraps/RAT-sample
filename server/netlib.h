@@ -7,12 +7,16 @@
 #include <stdio.h>
 #include <arpa/inet.h>
 
-extern void create_socket(int*, int, int,int);
-extern void create_udp_socket(int*);
-extern void create_tcp_socket(int*);
-extern void bind_socket(int, struct sockaddr_in*);
-extern void listen_on_socket(int, int);
-extern void update_sockaddr_in(struct sockaddr_in*, int, int, const char*);
+#define DEBUG
+
+void create_socket(int* sockfd, int domain, int type, int protocol);
+void create_udp_socket(int* sockfd);
+void create_tcp_socket(int* sockfd);
+void bind_socket(int sockfd, struct sockaddr_in* addr);
+void listen_on_socket(int sockfd, int backlog);
+void update_sockaddr_in(struct sockaddr_in *addr, int family, int port, const char* s_addr);
+
+void DBGLG(char buf[], ...);
 
 
 #endif

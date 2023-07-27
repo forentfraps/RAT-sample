@@ -2,10 +2,29 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdarg.h>
 
 #define handle_error(msg) \
     perror(msg); \
     exit(EXIT_FAILURE)
+
+
+
+void DBGLG(char buf[], ...)
+{
+    #ifdef DEBUG
+    va_list args;
+    int num = 0;
+    for(int i = 0; buf[i] != '\0'; ++i){
+        num += buf[i] == ':';
+    }
+    va_start(args, buf);
+    if (!num) printf("%s",buf);
+    else printf("%s%d\n",buf, va_arg(args, int));
+
+    va_end(args);
+    #endif
+}
 
 void create_socket(int* sockfd, int domain, int type, int protocol)
 {
@@ -25,7 +44,7 @@ void create_tcp_socket(int* sockfd)
 
 void bind_socket(int sockfd, struct sockaddr_in* addr)
 {
-    if (bind(sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+    if (bind(sockfd, (struct sockaddr *)addr, sizeof(*addr)) < 0) {
         handle_error("bind_socket(int, struct sockaddr*): bind failed.");}
 }
 
@@ -41,8 +60,23 @@ void update_sockaddr_in(struct sockaddr_in *addr, int family, int port, const ch
         handle_error("update_sockaddr_in(struct sockaddr_in*, int, int, int): NULL pointer.");}
     memset(addr, 0, sizeof(addr));
     addr->sin_family = family;
+    addr->sin_port = htons(port);
+    if (s_addr == NULL){
+        addr->sin_addr.s_addr = INADDR_ANY;
+        return;
+    }
     if (inet_pton(family, s_addr, &addr->sin_addr) <= 0) {
         handle_error("update_sockaddr_in(struct sockaddr_in*, int, int, int): Failed at creating sockaddr.");}
     
-    addr->sin_port = htons(port);
+    
 }
+
+int send_udp(int socku, struct sockaddr_in* sa, char* data, int len)
+{
+    if (socku < 0 || sendto(socku, data, len, 0, (struct sockaddr*) sa, 16) < 0){
+        DBGLG("send_udp(int, struct sockaddr_in, char*, int) failed to send udp packet");
+        return -1;
+    }
+    return 0;
+}
+
