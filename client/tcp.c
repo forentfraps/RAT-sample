@@ -13,7 +13,7 @@ int IpSetupTCP(ADDRINFO** _ad, char* ip)
     // Resolve the server address and port
     iResult = getaddrinfo(ip, DEFAULT_PORT_TCP, &hints, &ad);
     if ( iResult != 0 ) {
-        DBGLG("IpSetupINIT failed", WadGetLastError());
+        DBGLG("IpSetupINIT failed", WSAGetLastError());
         return -1;
     }
     *_ad = ad;
@@ -33,7 +33,7 @@ int Connect(SOCKET* ConnectSocket, ADDRINFO* ad)
         *ConnectSocket = socket(ptr->ai_family, ptr->ai_socktype,
             ptr->ai_protocol);
         if (*ConnectSocket == INVALID_SOCKET) {
-            DBGLG("socket failed with error: ", WadGetLastError());
+            DBGLG("socket failed with error: ", WSAGetLastError());
             freeaddrinfo(ad);
             return -1;
         }
