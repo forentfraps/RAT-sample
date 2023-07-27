@@ -15,13 +15,6 @@ void DBGLG(char buf[], ...){
     #endif
 }
 
-int MatchSig(char buf[2])
-{
-    if (buf[0] == (char)0xfb || buf[0] == (char)0xff){
-        return buf[1];
-    }
-    return -1;
-}
 
 int WinsockInitialized(void)
 {

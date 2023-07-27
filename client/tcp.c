@@ -1,42 +1,40 @@
 #include "includes.h"
 
-int IpSetupINIT(struct addrinfo** _ad_info, char* ip)
+int IpSetupTCP(ADDRINFO** _ad, char* ip)
 {
-    /* Slave -> Master relation ship */
-    struct addrinfo hints;
+    ADDRINFO hints;
     int iResult;
     ZeroMemory( &hints, sizeof(hints) );
-    struct addrinfo* ad_info;
+    ADDRINFO* ad;
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_protocol = IPPROTO_TCP;
 
     // Resolve the server address and port
-    iResult = getaddrinfo(ip, DEFAULT_PORT_TCP, &hints, &ad_info);
+    iResult = getaddrinfo(ip, DEFAULT_PORT_TCP, &hints, &ad);
     if ( iResult != 0 ) {
-        printf("getaddrinfo failed with error: %d\n", iResult);
-        return -5;
+        DBGLG("IpSetupINIT failed", WSAGetLastError());
+        return -1;
     }
-    *_ad_info = ad_info;
+    *_ad = ad;
     return 0;
 }
 
-int Connect(SOCKET* ConnectSocket, struct addrinfo* ad_info)
+int Connect(SOCKET* ConnectSocket, ADDRINFO* ad)
 {
-    /* Slave -> Master relationship
-       Takes a pointer to an empty SOCKET and addrinto.
+    /* Takes a pointer to an empty SOCKET and addrinto.
        Puts a hopefully connected socket to the provided pointer
-       Returns >= 0 on success */
+       Returns 0 on success */
     int iResult;
-    struct addrinfo* ptr = NULL;
-    for(ptr=ad_info; ptr != NULL ;ptr=ptr->ai_next) {
+    ADDRINFO* ptr = NULL;
+    for(ptr=ad; ptr != NULL ;ptr=ptr->ai_next) {
 
         // Create a SOCKET for connecting to server
         *ConnectSocket = socket(ptr->ai_family, ptr->ai_socktype,
             ptr->ai_protocol);
         if (*ConnectSocket == INVALID_SOCKET) {
-            printf("socket failed with error: %d\n", WSAGetLastError());
-            freeaddrinfo(ad_info);
+            DBGLG("socket failed with error: ", WSAGetLastError());
+            freeaddrinfo(ad);
             return -1;
         }
 
@@ -49,71 +47,28 @@ int Connect(SOCKET* ConnectSocket, struct addrinfo* ad_info)
         }
         break;
     }
-    freeaddrinfo(ad_info);
+    freeaddrinfo(ad);
 
     if (*ConnectSocket == INVALID_SOCKET) {
-        printf("Unable to connect to server!\n");
+        DBGLG("Unable to setup the socket or connect: ", WSAGetLastError());
         return -1;
     }
     return 0;
 }
 
-int SetupSocketTCP(struct addrinfo **ad_info){
+int SetupSocketTCP(ADDRINFO **ad)
+{
     /* Master -> Slave relationship */
-    int iResult;
-    struct addrinfo hints;
+    ADDRINFO hints;
     ZeroMemory(&hints, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_protocol = IPPROTO_TCP;
     hints.ai_flags = AI_PASSIVE;
-    iResult = getaddrinfo(NULL, DEFAULT_PORT_TCP, &hints, ad_info);
-    if ( iResult != 0 ) {
-        printf("getaddrinfo failed with error: %d\n", iResult);
-        WSACleanup();
+    if (getaddrinfo(NULL, DEFAULT_PORT_TCP, &hints, ad) != 0){
+        DBGLG("getaddrinfo failed with error: ", WSAGetLastError());
         return -1;
     }
     return 0;
 }
 
-int SetupServerTCP(SOCKET* ListenSocket){
-    int iResult;
-    struct addrinfo *ad_info = NULL;
-
-    if (!WinsockInitialized()){
-        iResult = InitSetup();
-        if (iResult < 0){
-            return iResult;
-        }
-    }
-    iResult = SetupSocketTCP(&ad_info);
-    if (iResult < 0){
-        perror("socket setup fail");
-        return -1;
-    }
-    *ListenSocket = socket(ad_info->ai_family, ad_info->ai_socktype, ad_info->ai_protocol);
-    if (*ListenSocket == INVALID_SOCKET) {
-        DBGLG("socket failed with error: \n", WSAGetLastError());
-        freeaddrinfo(ad_info);
-        WSACleanup();
-        return -1;
-    }
-    iResult = bind( *ListenSocket, ad_info->ai_addr, (int)ad_info->ai_addrlen);
-    if (iResult == SOCKET_ERROR) {
-        DBGLG("bind failed with error: \n", WSAGetLastError());
-        freeaddrinfo(ad_info);
-        closesocket(*ListenSocket);
-        WSACleanup();
-        return -1;
-    }
-    freeaddrinfo(ad_info);
-
-    iResult = listen(*ListenSocket, SOMAXCONN);
-    if (iResult == SOCKET_ERROR) {
-        DBGLG("listen failed with error: \n", WSAGetLastError());
-        closesocket(*ListenSocket);
-        WSACleanup();
-        return -1;
-    }
-    return 0;
-}
