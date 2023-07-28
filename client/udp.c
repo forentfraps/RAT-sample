@@ -62,6 +62,7 @@ int InitServer(SOCKET socku, SOCKADDR_IN* sa)
         else{
             DBGLG("recv timed out?? : ", WSAGetLastError());
         }
+        Sleep(5000);
     }
 
     DBGLG("Initialisation failure: ", WSAGetLastError());
@@ -75,7 +76,7 @@ int SetupClientUDP(SOCKET* socku_)
         DBGLG("Failed at making a socket: ", WSAGetLastError());
         return -1;
     }
-    int timeout = 3000;
+    int timeout = 30000;
     if (setsockopt(socku, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeout)) == SOCKET_ERROR) {
         DBGLG("Could not set appropriate timeout in InitServer: ", WSAGetLastError());
         return -1; // Return an error code if setting the timeout fails
