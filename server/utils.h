@@ -3,5 +3,6 @@
 
 #include <stdarg.h>
 void DBGLG(char buf[], ...);
+void isc(int* ptr);
 
 #endif

@@ -20,5 +20,7 @@ int add_db(struct db* db, char* sa, long timestamp);
 int save_db(struct db* db, char* path);
 unsigned long long hash(const char str[16]);
 void free_db(struct db** db);
+void print_db(struct db* db);
+int upd_timestamp_db(struct db* db, char* ip);
 
 #endif

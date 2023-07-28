@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <arpa/inet.h>
-
+#include <sys/types.h>
 
 void create_socket(int* sockfd, int domain, int type, int protocol);
 void create_udp_socket(int* sockfd);

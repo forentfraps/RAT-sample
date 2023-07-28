@@ -4,6 +4,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
 
 // struct dcell{
 //     char ip[16];
@@ -77,6 +78,30 @@ int add_db(struct db* db, char* sa, long timestamp)
     }
     db->st[db->len] = cell;
     db->len = db->len + 1;
+    return 0;
+}
+
+void print_db(struct db* db)
+{
+    printf("List of ips:\n");
+    for(int i = 0; i < db->len - 1; ++i){
+        printf("%d. %s\n", i, db->st[i]->ip);
+    }
+    printf("\n");
+}
+
+int upd_timestamp_db(struct db* db, char* ip)
+{
+    int i =0;
+    unsigned long long h = hash(ip);
+    for (i = 0; i < db->len - 1; ++i){
+        if (db->st[i]->hash == h){
+            goto upd_timestamp_db_success;
+        }
+    }
+    return -1;
+    upd_timestamp_db_success:
+    db->st[i]->timestamp = time(NULL);
     return 0;
 }
 

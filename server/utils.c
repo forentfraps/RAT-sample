@@ -17,3 +17,11 @@ void DBGLG(char buf[], ...)
     va_end(args);
     #endif
 }
+
+void isc(int* ptr)
+{
+    while(scanf("%d", ptr) != 1){
+        printf("Bad input, reenter!\n");
+        scanf("%*[^\n]");
+    }
+}
