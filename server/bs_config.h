@@ -7,4 +7,6 @@
 #define DEFAULT_BACKLOG 100
 #define BUFFER_SIZE 1024
 
+#define DEBUG
+
 #endif
