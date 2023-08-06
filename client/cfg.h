@@ -1,3 +1,3 @@
-#define DEFAULT_PORT_TCP "27015"
+#define DEFAULT_PORT_TCP "55556"
 #define DEBUG
 #define WIN32_LEAN_AND_MEAN

