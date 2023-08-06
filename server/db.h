@@ -22,5 +22,5 @@ unsigned long long hash(const char str[16]);
 void free_db(struct db** db);
 void print_db(struct db* db);
 int upd_timestamp_db(struct db* db, char* ip);
-
+int load_db(struct db** db, char* path);
 #endif

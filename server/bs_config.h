@@ -3,7 +3,8 @@
 
 // NET
 
-#define PORT 55555
+#define UDP_PORT 55555
+#define TCP_PORT 55556
 #define DEFAULT_BACKLOG 100
 #define BUFFER_SIZE 1024
 

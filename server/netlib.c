@@ -45,7 +45,7 @@ void update_sockaddr_in(struct sockaddr_in *addr, int family, int port, const ch
         handle_error("update_sockaddr_in(struct sockaddr_in*, int, int, int): NULL pointer.");}
     memset(addr, 0, sizeof(addr));
     addr->sin_family = family;
-    addr->sin_port = htons(port);
+    addr->sin_port = htons(port) ;
     if (s_addr == NULL){
         addr->sin_addr.s_addr = INADDR_ANY;
         return;
