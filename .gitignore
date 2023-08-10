@@ -12,3 +12,4 @@ client/a.out
 .pre-commit-config.yaml
 lnx_server
 *.db
+/test_win/

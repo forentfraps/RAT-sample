@@ -97,10 +97,25 @@ int Shell(PROCESS_INFORMATION* pi, SOCKET sockfd) {
     return 0;
 }
 
-int Cout(SOCKET sockt, ...)
+
+DWORD WINAPI MessageThread(LPVOID param)
 {
-    return -1;
+    char* message = (char*) param;
+    MessageBox(NULL, message, "", MB_TOPMOST);
+    return 0;
 }
+
+int SpawnMsgBox(char* msg)
+{
+    HANDLE hThread = CreateThread(NULL, 0, MessageThread, msg, 0, NULL);
+    if (hThread)
+    {
+        // Detach the thread without waiting
+        CloseHandle(hThread);
+    }
+    return 0;
+}
+
 
 int File(SOCKET sockt, ...)
 {
