@@ -16,4 +16,6 @@ void listen_on_socket(int sockfd, int backlog);
 void update_sockaddr_in(struct sockaddr_in *addr, int family, int port, const char* s_addr);
 char* get_ip(struct sockaddr_in sa);
 int send_udp(int socku, struct sockaddr_in* sa, char* data, int len);
+int handle_shell(struct sockaddr_in sa, int sockfd_u, char shll);
+
 #endif

@@ -74,7 +74,7 @@ int add_db(struct db* db, char* sa, long timestamp)
         DBGLG("Failed to malloc in add_db\n");
         return -1;
     }
-    memset(cell, 0, 24);
+    memset(cell, 0, sizeof(struct dcell));
     if((db->st = realloc(db->st, (sizeof(cell)) * (db->len + 1))) == NULL){
         DBGLG("DB DOWN, failed to realloc :)\n");
         return -1;
@@ -88,6 +88,12 @@ void print_db(struct db* db)
     printf("List of ips:\n");
     for(int i = 0; i < db->len - 1; ++i){
         printf("%d. %s %lu\n", i, db->st[i]->ip, db->st[i]->timestamp);
+        // printf("%llu\n", *(unsigned long long*)(db->st[i]->ip));
+        // printf("%llu\n", *(unsigned long long*)(db->st[i]->ip + 8));
+        // printf("%llu\n", *(unsigned long long*)(db->st[i]->sa));
+        // printf("%llu\n", *(unsigned long long*)(db->st[i]->sa + 8));
+        // printf("%llu\n", (unsigned long long)(db->st[i]->hash));
+        // printf("%ld\n", (db->st[i]->timestamp));
     }
     printf("\n");
 }
@@ -109,22 +115,27 @@ int upd_timestamp_db(struct db* db, char* ip)
 
 int load_db(struct db** db, char* path)
 {
-    FILE* ptr;
-    ptr = fopen(path, "r");
-    if (ptr == NULL){
+    FILE* fd;
+    fd = fopen(path, "r");
+    if (fd == NULL){
         DBGLG("Invalid path for db loading\n");
         return -1;
     }
     int len;
-    fread(&len, sizeof(int), 1, ptr);
-    *db = malloc(sizeof(struct db));
-    (*db)->st = malloc(len * sizeof(struct dcell));
+    char tmp[sizeof(struct dcell)];
+
+    fread(&len, sizeof(int), 1, fd);
+    DBGLG("Length is : ", len);
+    create_db(db);
     for (int i = 0; i < len -1; ++i){
-        if (fread(&((*db)->st[i]), sizeof(struct dcell), 1, ptr) <= 0){
-            DBGLG("Failed at reading db\n");
-            return -1;
+        DBGLG("Loading a cell\n");
+        if (fread((*db)->st[i], sizeof(struct dcell), 1, fd) > 0){
+            (*db)->st = realloc((*db)->st, sizeof(struct dcell*) * (++(*db)->len));
+            (*db)->st[i+1] = malloc(sizeof(struct dcell));
+            memset((*db)->st[i+1], 0, sizeof(struct dcell));
         }
     }
+    DBGLG("Len is: ", (*db)->len);
     return 0;
 }
 
@@ -137,16 +148,18 @@ int save_db(struct db* db, char* path)
     FILE* fd;
     struct dcell* ptr;
     
-    if ((fd = fopen(path, "wb")) == NULL) {
+    if ((fd = fopen(path, "w")) == NULL) {
         DBGLG("Failed to open path\n");
         return -1;
     }
     
     fwrite(&(db->len), sizeof(int), 1, fd);
 
-    for (int i = 0; i < db->len; ++i) {
+    for (int i = 0; i < db->len - 1; ++i) {
+        DBGLG("Saving cell number: ", i);
         ptr = db->st[i];
         fwrite(ptr, sizeof(struct dcell), 1, fd);
+        DBGLG("End saving cell\n");
     }
     
     fclose(fd);

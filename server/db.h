@@ -6,6 +6,7 @@ struct dcell{
     char ip[16];
     char sa[16];
     unsigned long long hash;
+    // LEAVE TIMESTAMP LAST
     long timestamp;
 };
 

