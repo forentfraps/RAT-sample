@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <bs_config.h>
+#include "bs_config.h"
 #include <sys/time.h>
 
 #define handle_error(msg) \
