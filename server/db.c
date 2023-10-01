@@ -136,6 +136,7 @@ int load_db(struct db** db, char* path)
         }
     }
     DBGLG("Len is: ", (*db)->len);
+    fclose(fd);
     return 0;
 }
 
@@ -169,6 +170,7 @@ int save_db(struct db* db, char* path)
 
 void free_db(struct db** db)
 {
+    DBGLG("Len is : ", (*db)->len);
     for (int i = 0; i < (*db)->len; ++i){
         free((*db)->st[i]);
     }

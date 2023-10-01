@@ -112,7 +112,7 @@ int main(int argc, char **argv)
         }
     }
     create_udp_socket(&sockfd_u);
-    
+     
     update_sockaddr_in(&local_addr, AF_INET, UDP_PORT, NULL);
     bind_socket(sockfd_u, &local_addr);
     struct timeval timeout;
@@ -129,7 +129,7 @@ int main(int argc, char **argv)
         perror("Thread creation failed.");
         exit(EXIT_FAILURE);
     }
-    pthread_detach(tid);
+    // pthread_detach(tid);
     
     DBGLG("Listening for UDP packets...\n");
     int choice = 0;
