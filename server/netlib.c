@@ -5,6 +5,7 @@
 #include <string.h>
 #include "bs_config.h"
 #include <sys/time.h>
+#include <pthread.h>
 
 #define handle_error(msg) \
     perror(msg); \
@@ -31,8 +32,10 @@ void create_tcp_socket(int* sockfd)
 
 void bind_socket(int sockfd, struct sockaddr_in* addr)
 {
-    if (bind(sockfd, (struct sockaddr *)addr, sizeof(*addr)) < 0) {
-        handle_error("bind_socket(int, struct sockaddr*): bind failed.");}
+    if (bind(sockfd, (struct sockaddr *)addr, sizeof(*addr)) < 0) 
+    {
+        handle_error("bind_socket(int, struct sockaddr*): bind failed.\n");
+    }
 }
 
 void listen_on_socket(int sockfd, int backlog)
@@ -67,27 +70,47 @@ int send_udp(int socku, struct sockaddr_in* sa, char* data, int len)
     return 0;
 }
 
+int get_port(struct sockaddr_in sa){
+    return ntohs(sa.sin_port);
+}
+
 char* get_ip(struct sockaddr_in sa)
 {
     return inet_ntoa(sa.sin_addr);
 }
 
+struct _nonblocking_accept_arg{
+    int sockfd;
+    struct sockaddr_in sa;
+    int* client_fd;
+} typedef _accept;
+
+void nonblocking_accept(void* b){
+    struct _nonblocking_accept_arg* a = (struct _nonblocking_accept_arg*)b;
+    int sockfd_tc = a->sockfd;
+    struct sockaddr_in sa = a->sa;
+    int* client_fd = a->client_fd;;
+
+
+    int junk = 16;
+    if (((*client_fd = accept(sockfd_tc, (struct sockaddr*) &sa, &junk)) < 0)){
+        perror("failed to accept tcp: ");
+        return;
+    }
+    return;
+}
+
+
 
 int handle_shell(struct sockaddr_in sa, int sockfd_u, char shll){
-    char ip[INET_ADDRSTRLEN];
+    int ATTEMPTS = 3;
+
     int sockfd_tc;
     struct sockaddr_in tsa;
-    int client_fd;
-    int junk = 16;
+    int client_fd = -1;
+    pthread_t tid;
     int response;
     char buf[2048];
-    inet_ntop(AF_INET, &(sa.sin_addr), ip, INET_ADDRSTRLEN);
-
-    // Print the IP address and port number
-    printf("IP Address: %s\n", ip);
-
-
-    printf("Port: %d\n", ntohs(sa.sin_port));
     update_sockaddr_in(&tsa, AF_INET, TCP_PORT, NULL);
     create_tcp_socket(&sockfd_tc);
     bind_socket(sockfd_tc, &tsa);
@@ -110,12 +133,34 @@ int handle_shell(struct sockaddr_in sa, int sockfd_u, char shll){
 
     }
     listen_on_socket(sockfd_tc, 1);
+_handle_shell_attempt:
     send_udp(sockfd_u, &sa, &shll, 1);
     DBGLG("We sent the welcome udp\n");
-    if (((client_fd = accept(sockfd_tc, (struct sockaddr*) &sa, &junk)) < 0)){
-        perror("failed to accept tcp: ");
+    // ////////////
+    struct _nonblocking_accept_arg a = {sockfd_tc, sa, &client_fd};
+    if(pthread_create(&tid, NULL,(void*) &nonblocking_accept, &a) != 0)
+    {
+        perror("Thread creation failed.");
+        close(sockfd_tc);
+        return -EXIT_FAILURE;
+    }
+    time_t t1 = time(NULL);
+    while (client_fd < 0 && time(NULL) - t1 < 6){
+        sleep(1);
+    }
+    if (client_fd < 0){
+        
+        DBGLG("Failed to accept\n");
+        pthread_cancel(tid);
+        pthread_join(tid, NULL);
+        if (ATTEMPTS--){
+            goto _handle_shell_attempt;
+        }
+        close(sockfd_tc);
         return -1;
     }
+    pthread_join(tid, NULL);
+    ///////////////
     if (setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(timeout)) == -1) {
         perror("setsockopt");
         DBGLG("Could not set appropriate timeout\n");
@@ -142,6 +187,8 @@ int handle_shell(struct sockaddr_in sa, int sockfd_u, char shll){
             break;
         }
     }
+    DBGLG("Exiting shell resp: ", response);
+    perror("error: ");
     close(client_fd);
     close(sockfd_tc);
     return 0;

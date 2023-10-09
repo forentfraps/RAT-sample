@@ -57,7 +57,8 @@ int add_db(struct db* db, char* sa, long timestamp)
     unsigned long long h = hash(tmp);
     for( int i = 0; i < db->len - 1; ++i){
         if(db->st[i]->hash == h){
-            DBGLG("sockaddr already in db\n");
+            DBGLG("sockaddr already in db, updating sa\n");
+            memcpy(&(db->st[i]->sa), sa, sizeof(struct sockaddr_in));
             return 1;
         }
     }
@@ -102,7 +103,7 @@ int upd_timestamp_db(struct db* db, char* ip)
 {
     int i =0;
     unsigned long long h = hash(ip);
-    for (i = 0; i < db->len - 1; ++i){
+    for (; i < db->len - 1; ++i){
         if (db->st[i]->hash == h){
             goto upd_timestamp_db_success;
         }

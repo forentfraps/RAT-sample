@@ -68,6 +68,10 @@ void solo_interaction(struct db* db, int sockfd_u)
     printf("Choose a user\n");
     print_db(db);
     isc(&user);
+    if (user >= db->len){
+        DBGLG("incorrect choice\n");
+        return;
+    }
     printf("Choose the deed:\n0 - Cout: popup window on client machine UNIMPLEMENTED\n1 - \
 Shell: pop a reverse shell\n2 - File: send or recieve a file UNIMPLEMENTED\n3 - exit this menu\n");
     isc(&choice);

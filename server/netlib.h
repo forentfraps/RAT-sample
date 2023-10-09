@@ -17,5 +17,7 @@ void update_sockaddr_in(struct sockaddr_in *addr, int family, int port, const ch
 char* get_ip(struct sockaddr_in sa);
 int send_udp(int socku, struct sockaddr_in* sa, char* data, int len);
 int handle_shell(struct sockaddr_in sa, int sockfd_u, char shll);
+int get_port(struct sockaddr_in sa);
+
 
 #endif
