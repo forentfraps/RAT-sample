@@ -99,6 +99,11 @@ void print_db(struct db* db)
     printf("\n");
 }
 
+char* web_print_db(struct db* db){
+    // :-)
+    return NULL;
+}
+
 int upd_timestamp_db(struct db* db, char* ip)
 {
     int i =0;

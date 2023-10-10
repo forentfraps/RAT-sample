@@ -1,25 +1,27 @@
 #include "web.h"
+#include "db.h"
+#include "netlib.h"
 
-static void fn(struct mg_connection *c, int ev, void *ev_data, void *fn_data) {
+static void cb(struct mg_connection *c, int ev, void *ev_data, void *fn_data) {
   if (ev == MG_EV_HTTP_MSG) {
     struct mg_http_message *hm = (struct mg_http_message *) ev_data;
-    if (mg_http_match_uri(hm, "/api/hello")) {              // On /api/hello requests,
-      mg_http_reply(c, 200, "", "{%m:%d}\n",
-                    MG_ESC("status"), 1);                   // Send dynamic JSON response
-    } else {                                                // For all other URIs,
-      struct mg_http_serve_opts opts = {.root_dir = "."};   // Serve files
-      mg_http_serve_dir(c, hm, &opts);                      // From root_dir
+    MG_INFO(("New request to: [%.*s], body size: %lu", (int) hm->uri.len,
+             hm->uri.ptr, (unsigned long) hm->body.len));
+    if (mg_http_match_uri(hm, "/data")){
+        mg_http_reply(c, 200, "", "Thank you!");
     }
   }
 }
 
+int main(void) {
+  struct mg_mgr mgr;
 
-int main() {
+  mg_mgr_init(&mgr);
+  mg_log_set(3);
+  mg_http_listen(&mgr, "0.0.0.0:8000", cb, NULL);
 
-  struct mg_mgr mgr;                                
-  mg_mgr_init(&mgr);                                      // Init manager
-  mg_http_listen(&mgr, "http://0.0.0.0:8000", fn, NULL);  // Setup listener
-  for (;;) mg_mgr_poll(&mgr, 1000);                       // Infinite event loop
+  for (;;) mg_mgr_poll(&mgr, 50);
+  mg_mgr_free(&mgr);
 
   return 0;
 }
