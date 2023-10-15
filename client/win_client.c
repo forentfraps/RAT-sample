@@ -70,7 +70,7 @@ int __cdecl main(int argc, char **argv)
     // DBGLG("thread started: ", iResult);
 
 
-    
+
     if (InitServer(sock_udp, &sa) <0){
         exit(1);
     }
