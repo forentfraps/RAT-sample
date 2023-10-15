@@ -10,6 +10,8 @@
 #include <time.h>
 #include <signal.h>
 #include <process.h>
+#include <gmp.h>
+#include <openssl/sha.h>
 
 enum SIG  {_SIG_INIT = 0x00, _SIG_HRBT= 0xff, _SIG_FILE = 0x01, _SIG_COUT = 0x02, _SIG_SHLL = 0x03};
 

@@ -39,6 +39,9 @@ int HeartBeat(SOCKET socku, SOCKADDR_IN* sa)
        if (recvfrom(socku, buf, 1024, 0,NULL, NULL) > 0){
             return buf[0];
        }
+       else{
+        // DBGLG("Failed to receive: ", WSAGetLastError());
+       }
     }
     return -1;
 }
