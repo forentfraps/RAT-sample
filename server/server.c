@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
+#include "web.h"
+
 
 enum SIG  {_SIG_INIT = 0x00, _SIG_HRBT= 0xff, _SIG_FILE = 0x01, _SIG_COUT = 0x02, _SIG_SHLL = 0x03};
 
@@ -105,9 +107,11 @@ int main(int argc, char **argv)
 {
 	printf("Starting\n");
     pthread_t tid;
+    pthread_t web;
     struct db* db = NULL;
     int sockfd_u;
     struct sockaddr_in local_addr;
+    int web_termination = 0;
     DBGLG("Attempting to load a db\n");
     if (load_db(&db, "db.db") < 0){
         create_db(&db);
@@ -127,14 +131,26 @@ int main(int argc, char **argv)
         DBGLG("Could not set appropriate timeout\n");
         exit(EXIT_FAILURE); 
     }
+
+
+    DBGLG("Starting UDP Listener\n");
+
     struct udp_arg ua = {sockfd_u, db};
     if(pthread_create(&tid, NULL, &udp_handler, &ua) != 0)
     {
-        perror("Thread creation failed.");
+        perror("UDP Thread creation failed.");
         exit(EXIT_FAILURE);
     }
-    // pthread_detach(tid);
-    
+
+
+    DBGLG("Starting WEB server\n");
+    struct web_arg wa= {db, &web_termination};
+    if (pthread_create(&web, NULL, &web_main, &wa) != 0)
+    {
+        perror("Web thread failed, aborting");
+        exit(EXIT_FAILURE);
+    }
+
     DBGLG("Listening for UDP packets...\n");
     int choice = 0;
     while (1) {
@@ -148,9 +164,12 @@ int main(int argc, char **argv)
                 solo_interaction(db, sockfd_u);
                 break;
             case 2:
-                DBGLG("Killing listeners\n");
+                DBGLG("Killing UDP listener\n");
                 terminate_thread = 1;
                 pthread_join(tid, NULL);
+                DBGLG("Killing web serber\n");
+                web_termination = 1;
+                pthread_join(web, NULL);
                 DBGLG("Saving db\n");
                 save_db(db, "./db.db");
                 DBGLG("Closing sockets\n");
