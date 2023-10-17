@@ -24,4 +24,7 @@ void free_db(struct db** db);
 void print_db(struct db* db);
 int upd_timestamp_db(struct db* db, char* ip);
 int load_db(struct db** db, char* path);
+char* web_print_db(struct db* db);
+
+
 #endif

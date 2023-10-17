@@ -100,8 +100,32 @@ void print_db(struct db* db)
 }
 
 char* web_print_db(struct db* db){
-    // :-)
-    return NULL;
+    /*
+    Writes db to a char* pointer which is returned at the end
+    Null in case of an error
+    format:
+    xxx.xxx.xxx.xxx,[LAST_TIMESTAMP]
+    xxx.xxx.xxx.xxx,[LAST_TIMESTAMP]
+    xxx.xxx.xxx.xxx,[LAST_TIMESTAMP]
+    */
+    int ptr = 0;
+    int increment = 0;
+    int size_of_ip = 16;
+    int size_of_time = 11;
+    int size = db->len * (size_of_ip + size_of_time);
+    char* buf = calloc(size, sizeof(char));
+    if (!buf) return NULL;
+    for (int i = 0; i < db->len - 1; ++i){
+        increment = strlen(db->st[i]->ip);
+        memcpy(buf + ptr, db->st[i]->ip, increment);
+        ptr += increment;
+        buf[ptr++] = ',';
+        sprintf(buf + ptr, "%ld\n", db->st[i]->timestamp);
+        ptr += 11;
+    }
+    increment = strlen(buf);
+    buf = realloc(buf, (increment + 1) * sizeof(char));
+    return buf;
 }
 
 int upd_timestamp_db(struct db* db, char* ip)
