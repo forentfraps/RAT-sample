@@ -58,7 +58,10 @@
         fstp qword[rsp - 8]
         mov rcx, [rsp - 8]
         xor rax, rcx
-        xor [rsp], rax
+        call appendByte2Rip
+        db 0xe8
+        lea rcx, [rsp + 0x16]
+        xor [rcx], rax
     _exit_loadTime:
         call pushTime
         db 0x7c

