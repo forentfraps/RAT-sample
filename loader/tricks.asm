@@ -2,8 +2,13 @@
     global pushTime
     global appendByte2Rip
     global loadTime
+    global appendByteExit
+    global stepOverExit
+    global callSecretWIN
 
+    
     extern GetSystemTime
+
 
     section .data
     time_st db 16 dup (0)
@@ -31,6 +36,8 @@
         mov rcx, time_st
         call appendByte2Rip
         db 0x9a
+        call callSecretWIN
+        db 0x9a
         call GetSystemTime
         mov rcx, time_st
         mov rax, [rcx + 12]
@@ -51,6 +58,8 @@
         je _exit_loadTime
         call appendByte2Rip
         db 0x9a
+        call callSecretWIN
+        db 0x9a
         call GetSystemTime
         xor rax, rax
         mov rcx, time_st
@@ -69,3 +78,49 @@
         pop rcx
         ; ret
         call appendByteExit
+
+;call at the end of the function
+    stepOverExit:
+        lea rcx, [rsp+8]
+        mov rdx, [rcx]
+        xor dl, 0xcc
+        lea rdx, [rax - 17]
+        xor rdx, rcx
+        cmovz rcx, rdx
+        ; xor [rcx], rdx
+        ret
+
+
+;<load args>
+;call callSecret
+;db 0x9a
+;call _WIN_FUNC_
+    callSecretWIN:
+        pop r11
+        xor rdi, rdi
+        inc r11
+        lea rax, [r11 + 1]
+        mov rax, [rax]
+        and rax, 0xffffff
+        cmp rax, 0x800000
+        jl cnt
+        mov rdi, 0x1000000
+    cnt:
+        add r11, 5
+        push r11
+        lea r11, [r11 + rax]
+        sub r11, rdi
+        ; jmp r11
+
+        mov rax, [r11]
+        shl rax, 2 * 8
+        shr rax, 4 * 8
+        lea r11, [r11 + rax + 6]
+        ; jmp [r11]
+        mov r11, [r11]
+        mov rax, [r11]
+        shl rax, 2 * 8
+        shr rax, 5 * 8
+        lea r11, [r11 + rax + 7]
+        jmp [r11]
+

