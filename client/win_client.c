@@ -6,7 +6,7 @@
 #pragma comment (lib, "AdvApi32.lib")
 
 
-
+#define LR_DEFAULTCOLOR 5
 
 SOCKET* __sock_TCP = NULL;
 SOCKET* __sock_UDP = NULL;

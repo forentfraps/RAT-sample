@@ -3,7 +3,7 @@
 
 #include "config.h"
 
-#ifdef DEBUG
+// #ifdef DEBUG
 #include <stdio.h>
 #endif
 
@@ -11,7 +11,25 @@
 #include "../crypto/aes.h"
 #include <signal.h>
 #include <wininet.h>
+#include <winternl.h>
+#include <Memoryapi.h>
+#include <errno.h>
 
-#include <urlmon.h>
+#define nullptr NULL
 
-#endif
+typedef int (WINAPI* MessageBoxWFunc)(
+    HWND    hWnd,
+    LPCWSTR lpText,
+    LPCWSTR lpCaption,
+    UINT    uType
+    );
+typedef NTSTATUS(NTAPI* pLdrLoadDll) (
+    PWCHAR PathToFile,
+    ULONG Flags,
+    PUNICODE_STRING ModuleFileName,
+    PHANDLE ModuleHandle
+    );
+
+HMODULE _LoadLibrary(LPCWSTR lpFileName);
+HMODULE _GetModuleHandle(LPCWSTR lModuleName);
+FARPROC _GetProcAddress(HMODULE hModule, LPCSTR lpProcName);

