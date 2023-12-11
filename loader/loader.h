@@ -8,7 +8,7 @@ extern void setTrapFlag(void);
 extern void stepOverExit(void);
 extern void appendByteExit(void);
 
-#define FORCE_INLINE __attribute__((always_inline)) inline
+#define FORCE_INLINE __attribute__((never_inline))
 
 // IAT FAKE
 #include <objidl.h>
@@ -117,5 +117,5 @@ typedef VOID (NTAPI*pRtlInitUnicodeString)(PUNICODE_STRING DestinationString, PC
 HMODULE _LoadLibrary(LPCWSTR lpFileName);
 HMODULE _GetModuleHandle(LPCWSTR lModuleName);
 FARPROC _GetProcAddress(HMODULE hModule, LPCSTR lpProcName);
-
+FARPROC _GetProcAddressNative(LPCSTR lpProcName);
 #endif

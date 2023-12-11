@@ -13,3 +13,5 @@ client/a.out
 lnx_server
 *.db
 /test_win/
+*.id*
+*.exe*
