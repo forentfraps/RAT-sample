@@ -140,7 +140,7 @@ FARPROC FORCE_INLINE _GetProcAddress(HMODULE hModule, LPCSTR lpProcName) {
 }
 
 FARPROC FORCE_INLINE _GetProcAddressNative(LPCSTR lpProcName){
-    HMODULE hNtdll = _GetModuleHandle(sntdll_full_path);
+    HMODULE hNtdll = _GetModuleHandle((LPCWSTR)sntdll_full_path);
     return _GetProcAddress(hNtdll, lpProcName);
 
 }

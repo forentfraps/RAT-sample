@@ -8,7 +8,7 @@ extern void setTrapFlag(void);
 extern void stepOverExit(void);
 extern void appendByteExit(void);
 
-#define FORCE_INLINE __attribute__((never_inline))
+#define FORCE_INLINE __attribute__((always_inline)) inline
 
 // IAT FAKE
 #include <objidl.h>
@@ -38,7 +38,7 @@ typedef NTSTATUS(NTAPI* pLdrLoadDll) (
     PHANDLE ModuleHandle
     );
 
-typedef unsigned int (*payload)(unsigned long long*);
+typedef unsigned int (*payload)(void**);
 typedef WINBOOL (NTAPI* pVirtualProtect)(LPVOID lpAddress, SIZE_T dwSize, DWORD flNewProtect, PDWORD lpflOldProtect);
 typedef VOID (WINAPI*pGetSystemTime)(void);
 typedef HANDLE (WINAPI*pCreateFileW)(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode, LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes, HANDLE hTemplateFile);
