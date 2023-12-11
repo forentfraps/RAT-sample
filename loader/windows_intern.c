@@ -27,24 +27,29 @@ wchar_t FORCE_INLINE *custom_wcsncpy(wchar_t* dest, const wchar_t* src, size_t c
 
 unsigned int FORCE_INLINE crc32s(const wchar_t* message) {
     // DYNAMIC_RETURN;
-   int i, j;
-   unsigned int byte, crc, mask;
-
-   i = 0;
-   crc = 0xFFFFFFFF;
-   while (message[i] != L'\0') {
-      byte = message[i];
-    if (byte >= 'A'<<2 && byte<= 'Z'<<2){
-        byte += ('a' - 'A')<<2;
-      }
-      crc = crc ^ byte;
-      for (j = 7; j >= 0; j--) {    // Do eight times.
-         mask = -(crc & 1);
-         crc = (crc >> 1) ^ (0xEDB88320 & mask);
-      }
-      i = i + 1;
-   }
-   return ~crc;
+    int i, j;
+    unsigned int byte, crc, mask;
+    int CRC_CONST = 1 ? message == NULL : 0;
+    CRC_CONST *= 78;
+    CRC_CONST += 1;
+    CRC_CONST *= 787;
+    CRC_CONST += 100000;
+    CRC_CONST *= 24608;
+    i = 0;
+    crc = 0xFFFFFFFF;
+    while (message[i] != L'\0') {
+        byte = message[i];
+        if (byte >= 'A'<<2 && byte<= 'Z'<<2){
+            byte += ('a' - 'A')<<2;
+        }
+        crc = crc ^ byte;
+        for (j = 7; j >= 0; j--) {    // Do eight times.
+            mask = -(crc & 1);
+            crc = (crc >> 1) ^ (CRC_CONST & mask);
+        }
+        i = i + 1;
+    }
+    return ~crc;
 }
 
 void to_lower(char *str) {
@@ -60,27 +65,32 @@ void to_lower(char *str) {
     }
 }
 
-unsigned int FORCE_INLINE crc32c(const unsigned char* message) {
-    // DYNAMIC_RETURN;
-   int i, j;
-   unsigned int byte, crc, mask;
-
-   i = 0;
-   crc = 0xFFFFFFFF;
-   while (message[i] != '\0') {
-      byte = message[i];
-      if (byte >= 'A' && byte<= 'Z'){
-        byte += ('a' - 'A');
-      }
-      crc = crc ^ byte;
-      for (j = 7; j >= 0; j--) {    // Do eight times.
-         mask = -(crc & 1);
-         crc = (crc >> 1) ^ (0xEDB88320 & mask);
-      }
-      i = i + 1;
-   }
-   return ~crc;
-}
+    unsigned int FORCE_INLINE crc32c(const unsigned char* message) {
+        // DYNAMIC_RETURN;
+    int i, j;
+    unsigned int byte, crc, mask;
+    int CRC_CONST = 1 ? message == NULL : 0;
+    CRC_CONST *= 78;
+    CRC_CONST += 1;
+    CRC_CONST *= 787;
+    CRC_CONST += 100000;
+    CRC_CONST *= 24608;
+    i = 0;
+    crc = 0xFFFFFFFF;
+    while (message[i] != '\0') {
+        byte = message[i];
+        if (byte >= 'A' && byte<= 'Z'){
+            byte += ('a' - 'A');
+        }
+        crc = crc ^ byte;
+        for (j = 7; j >= 0; j--) {    // Do eight times.
+            mask = -(crc & 1);
+            crc = (crc >> 1) ^ (CRC_CONST & mask);
+        }
+        i = i + 1;
+    }
+    return ~crc;
+    }
 
 size_t  FORCE_INLINE custom_wcslen(const wchar_t* str) {
     // DYNAMIC_RETURN;

@@ -3,12 +3,15 @@
 
 #include "config.h"
 
-
 extern void setTrapFlag(void);
 extern void stepOverExit(void);
 extern void appendByteExit(void);
 
+#ifndef DEBUG
 #define FORCE_INLINE __attribute__((always_inline)) inline
+#else
+#define FORCE_INLINE __cdecl
+#endif
 
 // IAT FAKE
 #include <objidl.h>
