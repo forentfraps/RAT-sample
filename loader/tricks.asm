@@ -6,32 +6,12 @@
     global stepOverExit
     global callSecretWIN
     global ___chkstk_ms
-    
     extern _GetSystemTime
-
 
     section .data
     time_st db 16 dup (0)
 
     section .text
-___chkstk_ms:
-                push    rcx
-                push    rax
-                cmp     rax, 1000h
-                lea     rcx, [rsp+10h+8]
-                jb      short loc_140002EC8
-loc_140002EAF:                          ; CODE XREF: ___chkstk_ms+26↓j
-                sub     rcx, 1000h
-                or      qword [rcx], 0
-                sub     rax, 1000h
-                cmp     rax, 1000h
-                ja      short loc_140002EAF
-loc_140002EC8:
-                sub     rcx, rax
-                or      qword [rcx], 0
-                pop     rax
-                pop     rcx
-                retn
 
         setTrapFlag:
         pushfq

